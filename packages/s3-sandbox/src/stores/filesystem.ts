@@ -1,3 +1,5 @@
+import { Temporal } from "@js-temporal/polyfill"
+import { iso8601FromInstant, toHttpDate } from "../temporal-tools.ts"
 import pick from "lodash/pick.js"
 import pickBy from "lodash/pickBy.js"
 import sortBy from "lodash/sortBy.js"
@@ -101,7 +103,9 @@ class FilesystemStore {
 		return {
 			...storedMetadata,
 			etag: JSON.stringify(md5),
-			"last-modified": stat.mtime.toUTCString(),
+			"last-modified": toHttpDate(
+				Temporal.Instant.fromEpochMilliseconds(Math.trunc(stat.mtimeMs)),
+			),
 			"content-length": stat.size,
 		}
 	}
@@ -177,7 +181,12 @@ class FilesystemStore {
 		try {
 			const stat = await fs.stat(bucketPath)
 			if (!stat.isDirectory()) return null
-			return new S3Bucket(bucket, stat.birthtime)
+			return new S3Bucket(
+				bucket,
+				iso8601FromInstant(
+					Temporal.Instant.fromEpochMilliseconds(Math.trunc(stat.birthtimeMs)),
+				),
+			)
 		} catch (err: any) {
 			if (err.code === "ENOENT") return null
 			throw err

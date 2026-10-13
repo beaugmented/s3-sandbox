@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill"
 import { createHash, createHmac } from "node:crypto"
 import { Transform } from "node:stream"
 
@@ -112,7 +113,7 @@ export const parseQuery = function (query: any) {
 	}
 
 	const requestTime = parseISO8601String(request.time)
-	if (Number.isNaN(requestTime.getTime())) {
+	if (!requestTime) {
 		throw new S3Error(
 			"AuthorizationQueryParametersError",
 			"X-Amz-Date must be in the ISO8601 Long Format \"yyyyMMdd'T'HHmmss'Z'\"",
@@ -120,13 +121,12 @@ export const parseQuery = function (query: any) {
 	}
 
 	const expires = Number(query["X-Amz-Expires"])
-	if (isNaN(expires))
-		if (expires < 0) {
-			throw new S3Error(
-				"AuthorizationQueryParametersError",
-				"X-Amz-Expires must be non-negative",
-			)
-		}
+	if (!Number.isFinite(expires)) {
+		throw new S3Error(
+			"AuthorizationQueryParametersError",
+			"X-Amz-Expires must be a finite number",
+		)
+	}
 	if (expires > 604800) {
 		throw new S3Error(
 			"AuthorizationQueryParametersError",
@@ -135,15 +135,17 @@ export const parseQuery = function (query: any) {
 		)
 	}
 
-	const serverTime = new Date()
+	const serverTime = Temporal.Now.instant()
 	// NOTE: S3 doesn't care about time skew for presigned requests
-	const expiresTime = new Date(Number(requestTime) + expires * 1000)
+	const expiresTime = requestTime.add({
+		milliseconds: Math.trunc(expires * 1000),
+	})
 
-	if (serverTime > expiresTime) {
+	if (Temporal.Instant.compare(serverTime, expiresTime) > 0) {
 		throw new S3Error("AccessDenied", "Request has expired", {
 			"X-Amz-Expires": query["X-Amz-Expires"],
-			Expires: expiresTime.toISOString().replace(/\.\d+/, ""),
-			ServerTime: serverTime.toISOString().replace(/\.\d+/, ""),
+			Expires: expiresTime.toString({ smallestUnit: "second" }),
+			ServerTime: serverTime.toString({ smallestUnit: "second" }),
 		})
 	}
 

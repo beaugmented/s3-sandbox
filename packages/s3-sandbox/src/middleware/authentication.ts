@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill"
 import mapKeys from "lodash/mapKeys.js"
 import pickBy from "lodash/pickBy.js"
 import { createHmac } from "node:crypto"
@@ -275,23 +276,26 @@ function parseHeader(headers: any): Record<string, any> {
 			break
 	}
 
-	const serverTime = new Date()
+	const serverTime = Temporal.Now.instant()
 	const requestTime = parseDate(request.time)
-	if (Number.isNaN(requestTime.getTime())) {
+	if (!requestTime) {
 		throw new S3Error(
 			"AccessDenied",
 			"AWS authentication requires a valid Date or x-amz-date header",
 		)
 	}
 
-	if (Math.abs(serverTime.getTime() - requestTime.getTime()) > 900000) {
+	if (
+		Math.abs(serverTime.epochMilliseconds - requestTime.epochMilliseconds) >
+		900000
+	) {
 		// 15 minutes
 		throw new S3Error(
 			"RequestTimeTooSkewed",
 			"The difference between the request time and the current time is too large.",
 			{
 				RequestTime: request.time,
-				ServerTime: serverTime.toISOString().replace(/\.\d+/, ""),
+				ServerTime: serverTime.toString({ smallestUnit: "second" }),
 			},
 		)
 	}

@@ -1,3 +1,4 @@
+import { parseDate } from "../temporal-tools.ts"
 import pick from "lodash/pick.js"
 import pickBy from "lodash/pickBy.js"
 
@@ -46,7 +47,13 @@ class S3Object<
 	}
 
 	get lastModifiedDate() {
-		return new Date(this.metadata["last-modified"])
+		const instant = parseDate(this.metadata["last-modified"])
+		if (!instant)
+			throw new S3Error(
+				"InternalError",
+				"Object metadata has an invalid modification timestamp",
+			)
+		return instant
 	}
 
 	declare bucket: string

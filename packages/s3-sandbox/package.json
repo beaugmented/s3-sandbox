@@ -62,6 +62,7 @@
 		"cov": "vp test --coverage"
 	},
 	"dependencies": {
+		"@js-temporal/polyfill": "0.5.1",
 		"@koa/router": "15.7.0",
 		"@types/koa": "3.0.3",
 		"busboy": "1.6.0",

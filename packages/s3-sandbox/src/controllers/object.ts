@@ -1,3 +1,5 @@
+import { Temporal } from "@js-temporal/polyfill"
+import { iso8601FromInstant, isoNow, parseDate } from "../temporal-tools.ts"
 import Busboy from "busboy"
 import crypto from "node:crypto"
 import { once } from "node:events"
@@ -150,7 +152,11 @@ export const getObject = async function getObject(ctx: S3Context) {
 		return
 	}
 	const modifiedSince = ctx.headers["if-modified-since"]
-	if (new Date(modifiedSince || "") >= object.lastModifiedDate) {
+	const modifiedSinceInstant = parseDate(modifiedSince || "")
+	if (
+		modifiedSinceInstant &&
+		Temporal.Instant.compare(modifiedSinceInstant, object.lastModifiedDate) >= 0
+	) {
 		ctx.status = 304
 		return
 	}
@@ -545,7 +551,7 @@ export const putObjectCopy = async function putObjectCopy(ctx: S3Context) {
 		})
 		ctx.body = {
 			CopyObjectResult: {
-				LastModified: new Date(metadata["last-modified"]).toISOString(),
+				LastModified: iso8601FromInstant(parseDate(metadata["last-modified"])),
 				ETag: metadata.etag,
 			},
 		}
@@ -795,7 +801,7 @@ export const uploadPartCopy = async function uploadPartCopy(ctx: S3Context) {
 		ctx.etag = md5
 		ctx.body = {
 			CopyPartResult: {
-				LastModified: new Date().toISOString(),
+				LastModified: isoNow(),
 				ETag: JSON.stringify(md5),
 			},
 		}

@@ -1,3 +1,5 @@
+import { Temporal } from "@js-temporal/polyfill"
+import { isoNow } from "../temporal-tools.ts"
 import crypto from "node:crypto"
 
 import { randomHexString } from "../utils.ts"
@@ -13,7 +15,9 @@ class S3Event {
 			eTag?: string
 		} = {
 			key: eventData.S3Item.key,
-			sequencer: Date.now().toString(16).toUpperCase(),
+			sequencer: Temporal.Now.instant()
+				.epochMilliseconds.toString(16)
+				.toUpperCase(),
 		}
 		switch (eventData.eventType) {
 			case "Copy":
@@ -44,7 +48,7 @@ class S3Event {
 					eventVersion: "2.0",
 					eventSource: "aws:s3",
 					awsRegion: "us-east-1",
-					eventTime: new Date().toISOString(),
+					eventTime: isoNow(),
 					eventName: eventName,
 					userIdentity: {
 						principalId: "AWS:" + randomHexString(21).toUpperCase(),

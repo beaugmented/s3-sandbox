@@ -91,48 +91,11 @@ export const randomHexString = function (length: number) {
 		.slice(0, length)
 }
 
-/**
- * Inserts separators into AWS ISO8601 formatted-dates to make it parsable by JS.
- *
- * @param dateString
- */
-export const parseISO8601String = function (dateString: string) {
-	if (typeof dateString !== "string") {
-		return new Date(NaN)
-	}
-	// attempt to parse as ISO8601 with inserted separators
-	// yyyyMMddTHHmmssZ
-	//     ^ ^    ^ ^
-	const chars = dateString.split("")
-	chars.splice(13, 0, ":")
-	chars.splice(11, 0, ":")
-	chars.splice(6, 0, "-")
-	chars.splice(4, 0, "-")
-	return new Date(chars.join(""))
-}
-
-/**
- * Attempts to parse a dateString as a regular JS Date before falling back to
- * AWS's "ISO8601 Long Format" date.
- *
- * @param dateString
- */
-export const parseDate = function (dateString: string) {
-	let date = new Date(dateString)
-	if (Number.isNaN(date.getTime())) {
-		date = parseISO8601String(dateString)
-	}
-	return date
-}
-
-/**
- * Like Date.prototype.toISOString(), but without separators and milliseconds.
- *
- * @param date
- */
-export const toISO8601String = function (date: any) {
-	return new Date(date).toISOString().replace(/[-:]|\.\d+/g, "")
-}
+export {
+	parseDate,
+	parseISO8601String,
+	toISO8601String,
+} from "./temporal-tools.ts"
 
 /**
  * Reads a request body to as parsed XML.

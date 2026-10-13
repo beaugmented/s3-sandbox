@@ -1,3 +1,4 @@
+import { iso8601FromInstant } from "../temporal-tools.ts"
 import crypto from "node:crypto"
 
 import { DUMMY_ACCOUNT } from "../models/account.ts"
@@ -289,7 +290,7 @@ export const getBucket = async function getBucket(ctx: S3Context) {
 				IsTruncated: result.isTruncated || false,
 				Contents: result.objects.map((object) => ({
 					Key: object.key,
-					LastModified: object.lastModifiedDate.toISOString(),
+					LastModified: iso8601FromInstant(object.lastModifiedDate),
 					ETag: object.metadata.etag,
 					Size: object.size,
 					Owner: options.fetchOwner

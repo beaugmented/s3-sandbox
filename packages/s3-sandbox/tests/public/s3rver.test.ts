@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill"
 import AWS from "aws-sdk"
 import express from "express"
 import FormData from "form-data"
@@ -160,7 +161,11 @@ describe("S3rver", () => {
 			const [event] = await eventPromise
 			const iso8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 			expect(event.Records[0].eventTime).to.match(iso8601)
-			expect(new Date(event.Records[0].eventTime)).to.not.satisfy(isNaN)
+			expect(
+				Number.isFinite(
+					Temporal.Instant.from(event.Records[0].eventTime).epochMilliseconds,
+				),
+			).toBe(true)
 		})
 
 		it("triggers a Post event", async function () {

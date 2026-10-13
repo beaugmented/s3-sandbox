@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill"
 import S3Error from "../models/error.ts"
 
 export const parseHeader = function (headers: any) {
@@ -50,19 +51,23 @@ export const parseQuery = function (query: any) {
 		signatureProvided: query.Signature,
 	}
 
-	const serverTime = new Date()
-	const expiresTime = new Date(request.expires * 1000)
-	if (Number.isNaN(expiresTime.getTime())) {
+	const serverTime = Temporal.Now.instant()
+	let expiresTime: Temporal.Instant
+	try {
+		expiresTime = Temporal.Instant.fromEpochMilliseconds(
+			Math.trunc(request.expires * 1000),
+		)
+	} catch {
 		throw new S3Error(
 			"AccessDenied",
 			`Invalid date (should be seconds since epoch): ${query.Expires}`,
 		)
 	}
 
-	if (serverTime > expiresTime) {
+	if (Temporal.Instant.compare(serverTime, expiresTime) > 0) {
 		throw new S3Error("AccessDenied", "Request has expired", {
-			Expires: expiresTime.toISOString().replace(/\.\d+/, ""),
-			ServerTime: serverTime.toISOString().replace(/\.\d+/, ""),
+			Expires: expiresTime.toString({ smallestUnit: "second" }),
+			ServerTime: serverTime.toString({ smallestUnit: "second" }),
 		})
 	}
 

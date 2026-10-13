@@ -26,7 +26,7 @@ export const getService = async function getService(ctx: S3Context) {
 			Buckets: {
 				Bucket: buckets.map((bucket) => ({
 					Name: bucket.name,
-					CreationDate: bucket.creationDate.toISOString(),
+					CreationDate: bucket.creationDate,
 				})),
 			},
 		},

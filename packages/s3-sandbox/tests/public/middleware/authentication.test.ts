@@ -1,3 +1,5 @@
+import { Temporal } from "@js-temporal/polyfill"
+import { toHttpDate } from "../../../src/temporal-tools.ts"
 import express from "express"
 import fs from "node:fs"
 import { URL } from "node:url"
@@ -168,7 +170,7 @@ describe("REST Authentication", () => {
 				baseUrl: s3Client.endpoint.href,
 				headers: {
 					Authorization: "AWS S3RVER:badsig",
-					"X-Amz-Date": new Date().toUTCString(),
+					"X-Amz-Date": toHttpDate(Temporal.Now.instant()),
 				},
 			})
 		} catch (err: any) {
@@ -186,7 +188,8 @@ describe("REST Authentication", () => {
 				qs: {
 					AWSAccessKeyId: "S3RVER",
 					Signature: "badsig",
-					Expires: (Date.now() / 1000).toFixed() + 900,
+					Expires:
+						(Temporal.Now.instant().epochMilliseconds / 1000).toFixed() + 900,
 				},
 			})
 		} catch (err: any) {
@@ -204,7 +207,9 @@ describe("REST Authentication", () => {
 				headers: {
 					Authorization: "AWS S3RVER:dummysig",
 					// 20 minutes in the future
-					"X-Amz-Date": new Date(Date.now() + 20000 * 60).toUTCString(),
+					"X-Amz-Date": toHttpDate(
+						Temporal.Now.instant().add({ milliseconds: 20000 * 60 }),
+					),
 				},
 			})
 		} catch (err: any) {
@@ -261,7 +266,9 @@ describe("REST Authentication", () => {
 					"X-Amz-SignedHeaders": "host",
 					"X-Amz-Signature": "dummysig",
 					// 10 minutes in the past
-					"X-Amz-Date": toISO8601String(Date.now() - 20000 * 60),
+					"X-Amz-Date": toISO8601String(
+						Temporal.Now.instant().subtract({ milliseconds: 20000 * 60 }),
+					),
 					"X-Amz-Expires": 20,
 				},
 			})
@@ -399,7 +406,7 @@ describe("REST Authentication", () => {
 					Authorization:
 						"AWS4-HMAC-SHA256 Credential=S3RVER/20060301/us-east-1/s3/aws4_request, SignedHeaders=host, Signature=badsig",
 					"X-Amz-Content-SHA256": "UNSIGNED-PAYLOAD",
-					"X-Amz-Date": toISO8601String(Date.now()),
+					"X-Amz-Date": toISO8601String(Temporal.Now.instant()),
 				},
 			})
 		} catch (err: any) {
@@ -417,7 +424,7 @@ describe("REST Authentication", () => {
 				qs: {
 					"X-Amz-Algorithm": "AWS4-HMAC-SHA256",
 					"X-Amz-Credential": "S3RVER/20200815/eu-west-2/s3/aws4_request",
-					"X-Amz-Date": toISO8601String(Date.now()),
+					"X-Amz-Date": toISO8601String(Temporal.Now.instant()),
 					"X-Amz-Expires": 30,
 					"X-Amz-SignedHeaders": "host",
 					"X-Amz-Signature": "badsig",

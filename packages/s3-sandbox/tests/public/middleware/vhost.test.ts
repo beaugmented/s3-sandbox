@@ -1,3 +1,4 @@
+import { Temporal } from "@js-temporal/polyfill"
 import zip from "lodash/zip.js"
 import { describe, expect, it } from "vite-plus/test"
 
@@ -44,8 +45,11 @@ describe("Virtual Host resolution", () => {
 		expect(parsedBuckets).to.have.lengthOf(buckets.length)
 		for (const [bucket, config] of zip<any>(parsedBuckets, buckets)) {
 			expect(bucket.Name).to.equal(config.name)
-			expect(Number.isFinite(new Date(bucket.CreationDate).getTime())).to.be
-				.true
+			expect(
+				Number.isFinite(
+					Temporal.Instant.from(bucket.CreationDate).epochMilliseconds,
+				),
+			).to.be.true
 		}
 	})
 
@@ -64,8 +68,11 @@ describe("Virtual Host resolution", () => {
 		expect(parsedBuckets).to.have.lengthOf(buckets.length)
 		for (const [bucket, config] of zip<any>(parsedBuckets, buckets)) {
 			expect(bucket.Name).to.equal(config.name)
-			expect(Number.isFinite(new Date(bucket.CreationDate).getTime())).to.be
-				.true
+			expect(
+				Number.isFinite(
+					Temporal.Instant.from(bucket.CreationDate).epochMilliseconds,
+				),
+			).to.be.true
 		}
 	})
 
@@ -83,8 +90,11 @@ describe("Virtual Host resolution", () => {
 		expect(parsedBuckets).to.have.lengthOf(buckets.length)
 		for (const [bucket, config] of zip<any>(parsedBuckets, buckets)) {
 			expect(bucket.Name).to.equal(config.name)
-			expect(Number.isFinite(new Date(bucket.CreationDate).getTime())).to.be
-				.true
+			expect(
+				Number.isFinite(
+					Temporal.Instant.from(bucket.CreationDate).epochMilliseconds,
+				),
+			).to.be.true
 		}
 	})
 

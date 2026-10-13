@@ -1119,8 +1119,7 @@ describe("Operations on Objects", () => {
 				})
 				.promise()
 			expect(copyResult.ETag).to.equal(data.ETag)
-			expect(Number.isFinite(new Date(copyResult.LastModified).getTime())).to.be
-				.true
+			expect(Number.isFinite(Number(copyResult.LastModified))).to.be.true
 			const object = await s3Client
 				.getObject({
 					Bucket: "bucket-b",
@@ -1185,8 +1184,7 @@ describe("Operations on Objects", () => {
 				})
 				.promise()
 			expect(copyResult.ETag).to.equal(data.ETag)
-			expect(Number.isFinite(new Date(copyResult.LastModified).getTime())).to.be
-				.true
+			expect(Number.isFinite(Number(copyResult.LastModified))).to.be.true
 		})
 
 		it("copies an image object into another bucket and update its metadata", async function () {

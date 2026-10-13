@@ -22,8 +22,7 @@ describe("Operations on the Service", () => {
 			expect(data.Buckets).to.have.lengthOf(6)
 			for (const [bucket, config] of zip<any>(data.Buckets, buckets)) {
 				expect(bucket.Name).to.equal(config.name)
-				expect(Number.isFinite(new Date(bucket.CreationDate).getTime())).to.be
-					.true
+				expect(Number.isFinite(Number(bucket.CreationDate))).to.be.true
 			}
 		})
 	})
