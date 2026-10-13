@@ -155,7 +155,7 @@ export default () =>
 					`${headerName}:${ctx.get(headerName).replace(/ +/g, " ")}`,
 			)
 
-		const canonicalRequest: Record<string, any> = {
+		const canonicalRequest = {
 			method:
 				ctx.method === "OPTIONS"
 					? ctx.get("Access-Control-Request-Method")
@@ -163,23 +163,14 @@ export default () =>
 			contentMD5: ctx.get("Content-MD5"),
 			contentType: ctx.get("Content-Type"),
 			headers: ctx.headers,
-			timestamp: undefined,
+			timestamp:
+				request.signature.version === 2 ? request.expires : request.time,
 			uri:
 				request.signature.version === 4
 					? (ctx.mountPath || "") + ctx.originalUrl.split("?")[0]
 					: canonicalizedResource,
 			querystring: canonicalizedQueryString,
 			amzHeaders: canonicalizedAmzHeaders,
-		}
-
-		switch (request.signature.version) {
-			case 2:
-				// S3 signing uses expiration time as timestamp
-				canonicalRequest.timestamp = request.expires
-				break
-			case 4:
-				canonicalRequest.timestamp = request.time
-				break
 		}
 
 		const account = AWSAccount.registry.get(request.accessKeyId)
@@ -195,7 +186,10 @@ export default () =>
 			request.stringToSign = v2.getStringToSign(canonicalRequest)
 			request.signingKey = account.accessKeys.get(request.accessKeyId)
 		} else if (request.signature.version === 4) {
-			request.stringToSign = v4.getStringToSign(canonicalRequest, request)
+			request.stringToSign = v4.getStringToSign(canonicalRequest, {
+				credential: request.credential,
+				signedHeaders: request.signedHeaders,
+			})
 			request.signingKey = v4.getSigningKey(
 				account.accessKeys.get(request.accessKeyId)!,
 				request.credential.date,

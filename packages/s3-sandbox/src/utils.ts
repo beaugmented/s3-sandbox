@@ -64,9 +64,9 @@ export const concatStreams = function (streams: any) {
  * URI-encodes a string according to RFC 3986. This is what AWS uses for
  * S3 resource URIs.
  *
- * @param {string} string
+ * @param string
  */
-export const encodeURIComponentRFC3986 = function (string: any) {
+export const encodeURIComponentRFC3986 = function (string: string): string {
 	return encodeURIComponent(string).replace(
 		/[!'()*]/g,
 		(ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase(),
@@ -100,9 +100,11 @@ export {
 /**
  * Reads a request body to as parsed XML.
  *
- * @param {Koa.Context} ctx
+ * @param ctx
  */
-export const xmlBodyParser = async function xmlBodyParser(ctx: S3Context) {
+export const xmlBodyParser = async function xmlBodyParser(
+	ctx: S3Context,
+): Promise<void> {
 	const { req } = ctx
 	const xmlString = await new Promise<string>((resolve, reject) => {
 		let payload = ""
@@ -125,9 +127,9 @@ export const xmlBodyParser = async function xmlBodyParser(ctx: S3Context) {
 /**
  * Reads a request body stream to a string.
  *
- * @param {Koa.Context} ctx
+ * @param ctx
  */
-export const utf8BodyParser = async function (ctx: S3Context) {
+export const utf8BodyParser = async function (ctx: S3Context): Promise<void> {
 	const { req } = ctx
 	ctx.request.body = await new Promise((resolve, reject) => {
 		let payload = ""

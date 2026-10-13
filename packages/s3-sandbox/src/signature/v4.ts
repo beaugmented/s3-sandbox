@@ -155,13 +155,30 @@ export const parseQuery = function (query: any) {
 /**
  * Generates a string to be signed for signature version 4.
  *
- * @param {*} canonicalRequest
- * @param {*} signature
+ * @param canonicalRequest
+ * @param signature
  */
 export const getStringToSign = function (
-	canonicalRequest: any,
-	{ credential, signedHeaders }: any,
-) {
+	canonicalRequest: {
+		method: string
+		uri: string
+		querystring: string
+		timestamp: string
+		headers: Record<string, string>
+	},
+	{
+		credential,
+		signedHeaders,
+	}: {
+		credential: {
+			date: string
+			region: string
+			service: string
+			termination: string
+		}
+		signedHeaders: string[]
+	},
+): string {
 	const canonicalHeaders = signedHeaders
 		.map((header: any) => `${header}:${canonicalRequest.headers[header]}\n`)
 		.join("")
@@ -195,17 +212,17 @@ export const getStringToSign = function (
  * Performs the calculation of an authentication code for a string using the specified key and
  * various components required by v4.
  *
- * @param {String} secretKey a secret access key
- * @param {String} date received from the credential header
- * @param {String} region received From the credential header
- * @param {String} service received From the credential header
+ * @param secretKey a secret access key
+ * @param date received from the credential header
+ * @param region received From the credential header
+ * @param service received From the credential header
  */
 export const getSigningKey = function (
 	secretKey: string,
-	date: any,
+	date: string,
 	region: string,
 	service: string,
-) {
+): Buffer {
 	const dateKey = createHmac("sha256", "AWS4" + secretKey)
 		.update(date)
 		.digest()
@@ -319,11 +336,11 @@ class AwsChunkedTransform extends Transform {
 	/**
 	 * Consumes bytes from a chunk until a CRLF sequence is discovered
 	 *
-	 * @param {Buffer} chunk
-	 * @param {number} position
+	 * @param chunk
+	 * @param position
 	 * @returns the number of bytes read from the chunk including the CRLF if one was discovered
 	 */
-	consumeUntilCrlf(chunk: Buffer, position = 0) {
+	consumeUntilCrlf(chunk: Buffer, position: number = 0): number {
 		let crlfIdx
 		if (
 			this.endsWithCr(this.chunkDecoderState.buf) &&
@@ -346,11 +363,11 @@ class AwsChunkedTransform extends Transform {
 	/**
 	 * Consumes bytes from a chunk up to the expected chunk length
 	 *
-	 * @param {Buffer} chunk
-	 * @param {number} position
+	 * @param chunk
+	 * @param position
 	 * @returns the number of bytes read from the chunk
 	 */
-	consumePayload(chunk: Buffer, position = 0) {
+	consumePayload(chunk: Buffer, position: number = 0): number {
 		const payload = chunk.slice(
 			position,
 			position + this.chunkDecoderState.bytesRemaining,
@@ -435,9 +452,9 @@ class AwsChunkedTransform extends Transform {
  *
  * Content hash verification is unimplemented.
  *
- * @param {Koa.Context} ctx
+ * @param ctx
  */
-export const aws4SignatureBodyParser = function (ctx: S3Context) {
+export const aws4SignatureBodyParser = function (ctx: S3Context): void {
 	ctx.request.body =
 		ctx.header["x-amz-content-sha256"] === "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
 			? ctx.req.pipe(

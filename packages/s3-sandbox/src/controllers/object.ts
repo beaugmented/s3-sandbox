@@ -223,12 +223,12 @@ export const getObjectAcl = async function getObjectAcl(ctx: S3Context) {
  * send the GET request against the tagging subresource associated with the object.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETtagging.html}
  *
- * @param {Koa.Context} ctx
- * @returns {Promise<void>}
+ * @param ctx
+ * @returns when the tagging response has been prepared
  */
 export const getObjectTagging = async function getObjectTagging(
 	ctx: S3Context,
-) {
+): Promise<void> {
 	const key = ctx.params.key
 	const exists = await ctx.store.existsObject(ctx.params.bucket, key)
 	if (!exists) {
@@ -573,10 +573,12 @@ export const putObjectCopy = async function putObjectCopy(ctx: S3Context) {
  * to an existing object.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUTtagging.html}
  *
- * @param {Koa.Context} ctx
- * @returns {Promise<void>}
+ * @param ctx
+ * @returns when the tagging configuration has been stored
  */
-export const putObjectTagging = async function putObject(ctx: S3Context) {
+export const putObjectTagging = async function putObject(
+	ctx: S3Context,
+): Promise<void> {
 	const key = ctx.params.key
 	const bucket = ctx.params.bucket
 	const exists = await ctx.store.existsObject(bucket, key)

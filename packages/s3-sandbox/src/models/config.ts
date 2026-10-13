@@ -20,17 +20,17 @@ export const getConfigModel = function getConfigModel(type: any) {
 class S3ConfigBase {
 	/**
 	 * Validates a given XML config against S3's spec.
-	 * @param {string} xml
-	 * @returns S3Config
+	 * @param xml
+	 * @returns the validated configuration
 	 */
-	static validate(_xml: string) {
+	static validate(_xml: string): S3ConfigBase {
 		throw new Error("Not implemented")
 	}
 
 	/**
 	 * Parses an XML document
-	 * @param {string} type
-	 * @param {string} config
+	 * @param type
+	 * @param config
 	 */
 	constructor(type: string, config: string) {
 		if (this.constructor === S3ConfigBase) {

@@ -134,9 +134,9 @@ export default () =>
 /**
  * Overrides Koa's redirect behavior with one more closely matching S3
  *
- * @param {string} url
+ * @param url
  */
-function redirect(this: S3Context, url: any) {
+function redirect(this: S3Context, url: string): void {
 	// unset headers
 	const { res } = this
 	res
@@ -162,24 +162,24 @@ function redirect(this: S3Context, url: any) {
 
 /**
  * Koa context.onerror handler modified to write a HTML-formatted response body
- * @param {Error} err
+ * @param err
  */
-async function onerror(this: S3Context, err: any) {
+async function onerror(this: S3Context, err: unknown): Promise<void> {
 	// don't do anything if there is no error.
 	// this allows you to pass `this.onerror`
 	// to node-style callbacks.
 	if (err == null) return
 
-	if (!(err instanceof Error))
-		err = new Error(format("non-error thrown: %j", err))
+	const error: Error & { headerSent?: boolean } =
+		err instanceof Error ? err : new Error(format("non-error thrown: %j", err))
 
 	let headerSent = false
 	if (this.headerSent || !this.writable) {
-		headerSent = err.headerSent = true
+		headerSent = error.headerSent = true
 	}
 
 	// delegate
-	this.app.emit("error", err, this)
+	this.app.emit("error", error, this)
 
 	// nothing we can do here other
 	// than delegate to the app-level
@@ -190,9 +190,7 @@ async function onerror(this: S3Context, err: any) {
 
 	const { res } = this
 
-	if (!(err instanceof S3Error)) {
-		err = S3Error.fromError(err)
-	}
+	const s3Error = error instanceof S3Error ? error : S3Error.fromError(error)
 
 	// first unset all headers
 	res
@@ -201,19 +199,19 @@ async function onerror(this: S3Context, err: any) {
 		.forEach((name: any) => res.removeHeader(name))
 
 	// (the presence of x-amz-error-* headers needs additional research)
-	// this.set(err.headers);
+	// this.set(s3Error.headers);
 
 	// force text/html
 	this.type = "text/html"
 
-	if (!err.description)
-		err.description = `${err.status} ${status.message[err.status]}`
+	if (!s3Error.description)
+		s3Error.description = `${s3Error.status} ${status.message[s3Error.status]}`
 
 	// respond
 	const { website } = this.state
 	if (
-		err.code !== "NoSuchBucket" &&
-		err.code !== "UnsupportedQuery" &&
+		s3Error.code !== "NoSuchBucket" &&
+		s3Error.code !== "UnsupportedQuery" &&
 		website.errorDocumentKey
 	) {
 		// attempt to serve error document
@@ -246,11 +244,11 @@ async function onerror(this: S3Context, err: any) {
 		)
 		errorDocumentErr.description =
 			"An Error Occurred While Attempting to Retrieve a Custom Error Document"
-		err.errors.push(errorDocumentErr)
+		s3Error.errors.push(errorDocumentErr)
 	}
 
-	const msg = err.toHTML()
-	this.status = err.status
+	const msg = s3Error.toHTML()
+	this.status = s3Error.status
 	this.length = Buffer.byteLength(msg)
 	res.end(msg)
 }

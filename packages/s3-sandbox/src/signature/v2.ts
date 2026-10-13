@@ -77,9 +77,17 @@ export const parseQuery = function (query: any) {
 /**
  * Generates a string to be signed for signature version 2.
  *
- * @param {*} canonicalRequest
+ * @param canonicalRequest
  */
-export const getStringToSign = function (canonicalRequest: any) {
+export const getStringToSign = function (canonicalRequest: {
+	method: string
+	contentMD5?: string
+	contentType?: string
+	timestamp: string | number
+	amzHeaders: string[]
+	querystring: string
+	uri: string
+}): string {
 	return [
 		canonicalRequest.method,
 		canonicalRequest.contentMD5,
