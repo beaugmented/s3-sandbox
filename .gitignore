@@ -1,19 +1,12 @@
-# Logs
-logs
-*.log
-
-# Runtime data
-pids
-*.pid
-*.seed
-.eslintcache
-
-# Coverage directory used by tools like istanbul
-.nyc_output/
-coverage/
-
-# Dependencies
 node_modules/
-
-# IDEs
-.idea
+dist/
+artifacts/
+.mise/
+.pnpm-home/
+.pnpm-store/
+.mise.local.toml
+.env
+*.log
+coverage/
+.vite-hooks/_/
+.vitest/

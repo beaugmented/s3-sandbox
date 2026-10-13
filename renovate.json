@@ -1,20 +1,114 @@
 {
-  "extends": ["config:base"],
-  "depTypes": [
-    {
-      "depType": "dependencies",
-      "pinVersions": false
-    }
-  ],
-  "packageRules": [
-    {
-      "packageNames": ["aws-sdk"],
-      "schedule": ["before 5am on monday"]
-    }
-  ],
-  "rebaseStalePrs": true,
-  "automerge": "minor",
-  "labels": ["tooling", "dependencies"],
-  "assignees": ["@leontastic"],
-  "reviewers": ["@leontastic"]
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": [
+		"config:recommended"
+	],
+	"automerge": true,
+	"branchConcurrentLimit": 9,
+	"internalChecksFilter": "strict",
+	"minimumReleaseAge": "1 day",
+	"prConcurrentLimit": 3,
+	"prHourlyLimit": 9,
+	"pruneBranchAfterAutomerge": true,
+	"pruneStaleBranches": true,
+	"statusCheckWhen": {
+		"minimumReleaseAge": "never"
+	},
+	"customManagers": [
+		{
+			"customType": "regex",
+			"managerFilePatterns": [
+				"/^\\.github\\/actions\\/setup\\/action\\.yml$/"
+			],
+			"matchStrings": [
+				"uses: jdx\\/mise-action@\\S+(?:\\s+#.*)?\\s+      with:\\s+        version: (?<currentValue>\\S+)"
+			],
+			"depNameTemplate": "jdx/mise",
+			"datasourceTemplate": "github-releases",
+			"versioningTemplate": "semver-coerced"
+		}
+	],
+	"packageRules": [
+		{
+			"matchPackageNames": [
+				"jdx/mise"
+			],
+			"matchDatasources": [
+				"github-releases"
+			],
+			"ignoreUnstable": true
+		},
+		{
+			"groupName": "vite-plus",
+			"matchPackageNames": [
+				"vite",
+				"vitest",
+				"vite-plus",
+				"@vitejs/*",
+				"@vitest/*",
+				"@voidzero-dev/vite-plus-core"
+			],
+			"separateMajorMinor": false,
+			"groupSingleUpdates": true,
+			"group": {
+				"commitMessageTopic": "{{{groupName}}}{{#each upgrades}}{{#if (equals depName 'vite-plus')}} to v{{{newVersion}}}{{/if}}{{/each}}",
+				"commitMessageExtra": ""
+			},
+			"skipArtifactsUpdate": true,
+			"postUpgradeTasks": {
+				"commands": [
+					"{{#if (includes (lookupArray upgrades 'depName') 'vite-plus')}}pnpm dlx --package=vite-plus@{{#each upgrades}}{{#if (equals depName 'vite-plus')}}{{{newVersion}}}{{/if}}{{/each}} vp migrate --no-interactive{{else}}pnpm install --no-frozen-lockfile --ignore-scripts{{/if}}",
+					"pnpm exec dprint fmt"
+				],
+				"executionMode": "branch",
+				"fileFilters": [
+					"**/*"
+				],
+				"installTools": {
+					"node": {},
+					"pnpm": {}
+				}
+			},
+			"prBodyNotes": [
+				"Vite Plus upgrades run the selected release's official `vp migrate --no-interactive` before installing new project dependencies. Review the generated source/configuration changes and any manual migration findings in the Renovate logs."
+			]
+		},
+		{
+			"description": "The official Vite Plus migrator owns bundled Vite/Vitest versions; independently released plugins remain eligible for updates",
+			"matchPackageNames": [
+				"vite",
+				"vitest",
+				"@vitest/*",
+				"!@vitest/eslint-plugin",
+				"!@vitest/browser-webdriverio",
+				"@voidzero-dev/vite-plus-core"
+			],
+			"enabled": false
+		},
+		{
+			"groupName": "changesets",
+			"matchPackageNames": [
+				"@changesets/cli",
+				"@changesets/config",
+				"changesets/action"
+			]
+		},
+		{
+			"matchManagers": [
+				"github-actions"
+			],
+			"dependencyDashboardApproval": true
+		},
+		{
+			"matchPackageNames": [
+				"agents.yaml",
+				"atom.io",
+				"break-check",
+				"comline",
+				"takua",
+				"treetrunks"
+			],
+			"minimumReleaseAge": null
+		}
+	]
 }

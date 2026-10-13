@@ -1,0 +1,9 @@
+{
+	"recommendations": [
+		"dprint.dprint",
+		"oxc.oxc-vscode",
+		"github.vscode-github-actions",
+		"streetsidesoftware.code-spell-checker",
+		"tamasfe.even-better-toml"
+	]
+}

@@ -1,90 +1,45 @@
 {
-  "name": "s3rver",
-  "version": "4.0.0",
-  "description": "Fake S3 server for node",
-  "keywords": [
-    "fake",
-    "s3",
-    "server",
-    "mock",
-    "false",
-    "aws",
-    "amazon"
-  ],
-  "author": {
-    "name": "Jamie Hall",
-    "email": "hello@jamiehall.eu",
-    "url": "http://github.com/jamhall/s3rver"
-  },
-  "license": "MPL-2.0",
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:jamhall/s3rver.git"
-  },
-  "bugs": {
-    "url": "https://github.com/jamhall/s3rver/issues"
-  },
-  "homepage": "https://github.com/jamhall/s3rver",
-  "scripts": {
-    "coverage": "nyc npm test",
-    "test": "mocha",
-    "fmt": "eslint . --fix && prettier . --write",
-    "prepare": "husky install"
-  },
-  "main": "lib/s3rver.js",
-  "files": [
-    "NOTICE",
-    "LICENSES/",
-    "lib/",
-    "example/*.xml"
-  ],
-  "bin": "bin/s3rver.js",
-  "directories": {
-    "lib": "./lib",
-    "example": "./example",
-    "test": "./test"
-  },
-  "engines": {
-    "node": ">=12.13.0"
-  },
-  "dependencies": {
-    "@koa/router": "^10.0.0",
-    "busboy": "^0.3.1",
-    "commander": "^8.0.0",
-    "fast-xml-parser": "^3.19.0",
-    "he": "^1.2.0",
-    "koa": "^2.12.1",
-    "koa-logger": "^3.2.0",
-    "lodash": "^4.17.20",
-    "statuses": "^2.0.0",
-    "winston": "^3.0.0"
-  },
-  "devDependencies": {
-    "aws-sdk": "2.999.0",
-    "chai": "4.3.4",
-    "chai-as-promised": "7.1.1",
-    "eslint": "7.32.0",
-    "eslint-config-prettier": "8.3.0",
-    "eslint-config-standard": "16.0.3",
-    "eslint-plugin-import": "2.24.2",
-    "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-prettier": "4.0.0",
-    "eslint-plugin-promise": "5.1.0",
-    "eslint-plugin-standard": "4.1.0",
-    "express": "4.17.1",
-    "form-data": "4.0.0",
-    "husky": "7.0.2",
-    "lint-staged": "11.2.0",
-    "mocha": "9.1.2",
-    "moment": "2.29.1",
-    "nyc": "15.1.0",
-    "p-map": "4.0.0",
-    "prettier": "2.4.1",
-    "request": "2.88.2",
-    "request-promise-native": "1.0.9"
-  },
-  "lint-staged": {
-    "*.js": "eslint --cache --fix",
-    "*": "prettier --write --ignore-unknown"
-  }
+	"name": "s3-sandbox-workspace",
+	"private": true,
+	"license": "MPL-2.0",
+	"type": "module",
+	"scripts": {
+		"build": "vp run -r build",
+		"check": "pnpm run \"/^check:.*/\"",
+		"check:fmt": "dprint check",
+		"check:spelling": "cspell .",
+		"fmt": "dprint fmt",
+		"test": "vp run -r test",
+		"test:breaks": "vp run -r --no-cache test:breaks",
+		"test:watch": "vp run -r --parallel --no-cache test:watch",
+		"change": "changeset",
+		"release:version": "changeset version",
+		"release:publish": "pnpm build && changeset publish",
+		"workflows:update": "./scripts/update-workflows.node.ts",
+		"check:vp": "vp check --no-fmt",
+		"staged": "vp staged",
+		"cov": "vp run -r --no-cache cov"
+	},
+	"devDependencies": {
+		"@changesets/cli": "3.0.3",
+		"@changesets/config": "4.0.1",
+		"@dprint/json": "0.25.2",
+		"@dprint/markdown": "0.26.0",
+		"@dprint/oxc": "0.45.0",
+		"@dprint/toml": "0.9.0",
+		"@types/node": "26.6.5",
+		"@vitest/coverage-v8": "5.0.3",
+		"cspell": "10.3.6",
+		"dprint": "0.63.0",
+		"dprint-plugin-yaml": "0.6.0",
+		"publint": "0.3.25",
+		"typescript": "7.0.2",
+		"vite": "catalog:",
+		"vite-plus": "catalog:"
+	},
+	"packageManager": "pnpm@12.11.2",
+	"engines": {
+		"node": "26.11.1",
+		"pnpm": "12.11.2"
+	}
 }

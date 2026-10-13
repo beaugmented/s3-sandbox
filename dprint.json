@@ -1,0 +1,68 @@
+{
+	"$schema": "https://dprint.dev/schemas/v0.json",
+	"lineWidth": 80,
+	"useTabs": true,
+	"indentWidth": 2,
+	"includes": [
+		"**/*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md,mdx,css,astro,toml,yml,yaml}"
+	],
+	"excludes": [
+		"**/metafile-*",
+		"**/*.cache.json",
+		"**/*.gen.ts",
+		"**/*.gen.tsx",
+		"**/pnpm-lock.yaml",
+		"**/*.scss",
+		"**/*.tsdoc.json",
+		"**/.astro/**",
+		"**/.next/**",
+		"**/.turbo/**",
+		"**/.varmint/**",
+		"**/.wrangler/**",
+		"**/app/**",
+		"**/bin/**",
+		"**/coverage/**",
+		"**/dist/**",
+		"**/drizzle/meta/**",
+		"**/refractor/corpus/providers/**",
+		"**/refractor/corpus/reports/**",
+		"**/heap.json",
+		"**/node_modules/**",
+		"**/projects/**",
+		"**/tests/public/fixtures/**"
+	],
+	"oxc": {
+		"associations": [
+			"**/*.{ts,tsx,js,jsx,mjs,cjs}"
+		],
+		"semicolons": "asNeeded",
+		"trailingCommas": "all"
+	},
+	"json": {
+		"associations": [
+			"**/*.{json,jsonc}"
+		]
+	},
+	"markdown": {
+		"associations": [
+			"**/*.{md,mdx}"
+		]
+	},
+	"toml": {
+		"associations": [
+			"**/*.toml"
+		]
+	},
+	"yaml": {
+		"associations": [
+			"**/*.{yml,yaml}"
+		]
+	},
+	"plugins": [
+		"./node_modules/@dprint/oxc/plugin.wasm",
+		"./node_modules/@dprint/json/plugin.wasm",
+		"./node_modules/@dprint/markdown/plugin.wasm",
+		"./node_modules/@dprint/toml/plugin.wasm",
+		"./node_modules/dprint-plugin-yaml/plugin.wasm"
+	]
+}
