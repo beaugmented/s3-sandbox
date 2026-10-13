@@ -1,7 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill"
 import S3Error from "../models/error.ts"
 
-export const parseHeader = function (headers: any) {
+export function parseHeader(headers: any) {
 	const [, ...components] = headers.authorization.split(" ")
 
 	if (components.length !== 1) {
@@ -30,7 +30,7 @@ export const parseHeader = function (headers: any) {
 	return { accessKeyId: match[1], signatureProvided: match[2] }
 }
 
-export const parseQuery = function (query: any) {
+export function parseQuery(query: any) {
 	// authentication param names are case-sensitive
 	if (!("Expires" in query) || !("AWSAccessKeyId" in query)) {
 		throw new S3Error(
@@ -79,7 +79,7 @@ export const parseQuery = function (query: any) {
  *
  * @param canonicalRequest
  */
-export const getStringToSign = function (canonicalRequest: {
+export function getStringToSign(canonicalRequest: {
 	method: string
 	contentMD5?: string
 	contentType?: string

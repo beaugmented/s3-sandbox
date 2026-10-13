@@ -51,7 +51,7 @@ function decipherContinuationToken(token: string) {
 	}
 }
 
-export const bucketExists = async function bucketExists(
+export async function bucketExists(
 	ctx: S3Context,
 	next?: () => Promise<unknown>,
 ) {
@@ -102,7 +102,7 @@ export const METHODS = [
  * markers) in the bucket must be deleted before the bucket itself can be deleted.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETE.html}
  */
-export const deleteBucket = async function deleteBucket(ctx: S3Context) {
+export async function deleteBucket(ctx: S3Context) {
 	const { objects } = await ctx.store.listObjects(ctx.params.bucket, {
 		maxKeys: 1,
 	})
@@ -122,9 +122,7 @@ export const deleteBucket = async function deleteBucket(ctx: S3Context) {
  * Deletes the cors configuration information set for the bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEcors.html}
  */
-export const deleteBucketCors = async function deleteBucketCors(
-	ctx: S3Context,
-) {
+export async function deleteBucketCors(ctx: S3Context) {
 	await ctx.store.deleteSubresource(ctx.params.bucket, undefined, "cors")
 	ctx.body = ""
 }
@@ -139,9 +137,7 @@ export const deleteBucketCors = async function deleteBucketCors(
  * exist.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketDELETEwebsite.html}
  */
-export const deleteBucketWebsite = async function deleteBucketWebsite(
-	ctx: S3Context,
-) {
+export async function deleteBucketWebsite(ctx: S3Context) {
 	await ctx.store.deleteSubresource(ctx.params.bucket, undefined, "website")
 	ctx.body = ""
 }
@@ -152,7 +148,7 @@ export const deleteBucketWebsite = async function deleteBucketWebsite(
  * bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGET.html}
  */
-export const getBucket = async function getBucket(ctx: S3Context) {
+export async function getBucket(ctx: S3Context) {
 	const options: {
 		delimiter?: string | undefined
 		encodingType?: string | undefined
@@ -321,7 +317,7 @@ export const getBucket = async function getBucket(ctx: S3Context) {
  * Returns the cors configuration information set for the bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETcors.html}
  */
-export const getBucketCors = async function getBucketCors(ctx: S3Context) {
+export async function getBucketCors(ctx: S3Context) {
 	const config = await ctx.store.getSubresource(
 		ctx.params.bucket,
 		undefined,
@@ -344,9 +340,7 @@ export const getBucketCors = async function getBucketCors(ctx: S3Context) {
  * associated with a bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETlocation.html}
  */
-export const getBucketLocation = async function getBucketLocation(
-	ctx: S3Context,
-) {
+export async function getBucketLocation(ctx: S3Context) {
 	// always return default bucket location
 	ctx.body = {
 		LocationConstraint: {
@@ -362,9 +356,7 @@ export const getBucketLocation = async function getBucketLocation(
  * bucket as website by adding a website configuration.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETwebsite.html}
  */
-export const getBucketWebsite = async function getBucketWebsite(
-	ctx: S3Context,
-) {
+export async function getBucketWebsite(ctx: S3Context) {
 	const config = await ctx.store.getSubresource(
 		ctx.params.bucket,
 		undefined,
@@ -389,7 +381,7 @@ export const getBucketWebsite = async function getBucketWebsite(
  * owner.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUT.html}
  */
-export const putBucket = async function putBucket(ctx: S3Context) {
+export async function putBucket(ctx: S3Context) {
 	const bucketName = ctx.params.bucket
 	/**
 	 * Derived from http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
@@ -438,7 +430,7 @@ export const putBucket = async function putBucket(ctx: S3Context) {
  * Amazon S3 replaces it.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html}
  */
-export const putBucketCors = async function putBucketCors(ctx: S3Context) {
+export async function putBucketCors(ctx: S3Context) {
 	await utf8BodyParser(ctx)
 	const config = S3CorsConfiguration.validate(ctx.request.body)
 	await ctx.store.putSubresource(ctx.params.bucket, undefined, config)
@@ -453,9 +445,7 @@ export const putBucketCors = async function putBucketCors(ctx: S3Context) {
  * file name of the index document and any redirect rules.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTwebsite.html}
  */
-export const putBucketWebsite = async function putBucketWebsite(
-	ctx: S3Context,
-) {
+export async function putBucketWebsite(ctx: S3Context) {
 	await utf8BodyParser(ctx)
 	const config = S3WebsiteConfiguration.validate(ctx.request.body)
 	await ctx.store.putSubresource(ctx.params.bucket, undefined, config)

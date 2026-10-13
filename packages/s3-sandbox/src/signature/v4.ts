@@ -8,7 +8,7 @@ import { parseISO8601String } from "../utils.ts"
 
 const CRLF = Buffer.from("\r\n")
 
-export const parseHeader = function (headers: any) {
+export function parseHeader(headers: any) {
 	if (!("x-amz-content-sha256" in headers)) {
 		throw new S3Error(
 			"InvalidRequest",
@@ -73,7 +73,7 @@ export const parseHeader = function (headers: any) {
 	}
 }
 
-export const parseQuery = function (query: any) {
+export function parseQuery(query: any) {
 	// query param values are case-sensitive
 	if (query["X-Amz-Algorithm"] !== "AWS4-HMAC-SHA256") {
 		throw new S3Error(
@@ -158,7 +158,7 @@ export const parseQuery = function (query: any) {
  * @param canonicalRequest
  * @param signature
  */
-export const getStringToSign = function (
+export function getStringToSign(
 	canonicalRequest: {
 		method: string
 		uri: string
@@ -217,7 +217,7 @@ export const getStringToSign = function (
  * @param region received From the credential header
  * @param service received From the credential header
  */
-export const getSigningKey = function (
+export function getSigningKey(
 	secretKey: string,
 	date: string,
 	region: string,
@@ -454,7 +454,7 @@ class AwsChunkedTransform extends Transform {
  *
  * @param ctx
  */
-export const aws4SignatureBodyParser = function (ctx: S3Context): void {
+export function aws4SignatureBodyParser(ctx: S3Context): void {
 	ctx.request.body =
 		ctx.header["x-amz-content-sha256"] === "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
 			? ctx.req.pipe(

@@ -49,9 +49,7 @@ export const METHODS = [
  * specific version of the object from a versioning-enabled bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html}
  */
-export const deleteMultipleObjects = async function deleteMultipleObjects(
-	ctx: S3Context,
-) {
+export async function deleteMultipleObjects(ctx: S3Context) {
 	await xmlBodyParser(ctx)
 	if (!ctx.request.body.Delete || !ctx.request.body.Delete.Object) {
 		throw new S3Error(
@@ -89,7 +87,7 @@ export const deleteMultipleObjects = async function deleteMultipleObjects(
  * Amazon S3 does not remove any objects.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html}
  */
-export const deleteObject = async function deleteObject(ctx: S3Context) {
+export async function deleteObject(ctx: S3Context) {
 	try {
 		if (await ctx.store.existsObject(ctx.params.bucket, ctx.params.key)) {
 			await ctx.store.deleteObject(ctx.params.bucket, ctx.params.key)
@@ -118,7 +116,7 @@ export const deleteObject = async function deleteObject(ctx: S3Context) {
  * the object without using an authorization header.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html}
  */
-export const getObject = async function getObject(ctx: S3Context) {
+export async function getObject(ctx: S3Context) {
 	const options: { start?: number; end?: number } = {}
 	if (ctx.get("range").startsWith("bytes=")) {
 		const [start, end] = ctx.get("range").replace("bytes=", "").split("-")
@@ -191,7 +189,7 @@ export const getObject = async function getObject(ctx: S3Context) {
  * list (ACL) of an object. To use this operation, you must have READ_ACP access to the object.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETacl.html}
  */
-export const getObjectAcl = async function getObjectAcl(ctx: S3Context) {
+export async function getObjectAcl(ctx: S3Context) {
 	// NOTE: This is a stub implementation
 	ctx.body = {
 		AccessControlPolicy: {
@@ -226,9 +224,7 @@ export const getObjectAcl = async function getObjectAcl(ctx: S3Context) {
  * @param ctx
  * @returns when the tagging response has been prepared
  */
-export const getObjectTagging = async function getObjectTagging(
-	ctx: S3Context,
-): Promise<void> {
+export async function getObjectTagging(ctx: S3Context): Promise<void> {
 	const key = ctx.params.key
 	const exists = await ctx.store.existsObject(ctx.params.bucket, key)
 	if (!exists) {
@@ -252,7 +248,7 @@ export const getObjectTagging = async function getObjectTagging(
  * The POST operation adds an object to a specified bucket using HTML forms.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPOST.html}
  */
-export const postObject = async function postObject(ctx: S3Context) {
+export async function postObject(ctx: S3Context) {
 	if (!ctx.is("multipart/form-data")) {
 		throw new S3Error(
 			"PreconditionFailed",
@@ -446,7 +442,7 @@ export const postObject = async function postObject(ctx: S3Context) {
  * This implementation of the PUT operation adds an object to a bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html}
  */
-export const putObject = async function putObject(ctx: S3Context) {
+export async function putObject(ctx: S3Context) {
 	aws4SignatureBodyParser(ctx)
 	const object = new S3Object(
 		ctx.params.bucket,
@@ -490,7 +486,7 @@ export const putObject = async function putObject(ctx: S3Context) {
  * destination bucket.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html}
  */
-export const putObjectCopy = async function putObjectCopy(ctx: S3Context) {
+export async function putObjectCopy(ctx: S3Context) {
 	let copySource = decodeURI(ctx.get("x-amz-copy-source"))
 	copySource = copySource.startsWith("/") ? copySource.slice(1) : copySource
 	const [srcBucket = "", ...keyParts] = copySource.split("/")
@@ -576,9 +572,7 @@ export const putObjectCopy = async function putObjectCopy(ctx: S3Context) {
  * @param ctx
  * @returns when the tagging configuration has been stored
  */
-export const putObjectTagging = async function putObject(
-	ctx: S3Context,
-): Promise<void> {
+export async function putObjectTagging(ctx: S3Context): Promise<void> {
 	const key = ctx.params.key
 	const bucket = ctx.params.bucket
 	const exists = await ctx.store.existsObject(bucket, key)
@@ -609,9 +603,7 @@ export const putObjectTagging = async function putObject(
  * This operation completes a multipart upload by assembling previously uploaded parts.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html}
  */
-export const completeMultipartUpload = async function completeMultipartUpload(
-	ctx: S3Context,
-) {
+export async function completeMultipartUpload(ctx: S3Context) {
 	await xmlBodyParser(ctx)
 	if (
 		!ctx.request.body.CompleteMultipartUpload ||
@@ -676,9 +668,7 @@ export const completeMultipartUpload = async function completeMultipartUpload(
  * either complete or abort the multipart upload request.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html}
  */
-export const initiateMultipartUpload = async function initiateMultipartUpload(
-	ctx: S3Context,
-) {
+export async function initiateMultipartUpload(ctx: S3Context) {
 	const uploadId = crypto.randomBytes(16).toString("hex")
 	await ctx.store.initiateUpload(
 		ctx.params.bucket,
@@ -704,7 +694,7 @@ export const initiateMultipartUpload = async function initiateMultipartUpload(
  * size, except the last part. There is no size limit on the last part of your multipart upload.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html}
  */
-export const uploadPart = async function uploadPart(ctx: S3Context) {
+export async function uploadPart(ctx: S3Context) {
 	aws4SignatureBodyParser(ctx)
 	try {
 		const { md5 } = await ctx.store.putPart(
@@ -733,7 +723,7 @@ export const uploadPart = async function uploadPart(ctx: S3Context) {
 	}
 }
 
-export const uploadPartCopy = async function uploadPartCopy(ctx: S3Context) {
+export async function uploadPartCopy(ctx: S3Context) {
 	let copySource = decodeURI(ctx.get("x-amz-copy-source"))
 	copySource = copySource.startsWith("/") ? copySource.slice(1) : copySource
 	const [srcBucket = "", ...keyParts] = copySource.split("/")

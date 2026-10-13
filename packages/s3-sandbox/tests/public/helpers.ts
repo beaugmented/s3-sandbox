@@ -16,16 +16,12 @@ export const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "s3-sandbox-test-"))
 
 const instances = new Set<S3rver>()
 
-export const resetTmpDir = function resetTmpDir() {
+export function resetTmpDir() {
 	fs.rmSync(tmpDir, { recursive: true, force: true })
 	fs.mkdirSync(tmpDir, { recursive: true })
 }
 
-export const generateTestObjects = function generateTestObjects(
-	s3Client: any,
-	bucket: any,
-	amount: any,
-) {
+export function generateTestObjects(s3Client: any, bucket: any, amount: any) {
 	const padding = amount.toString().length
 	const objects = times(amount, (i) => ({
 		Bucket: bucket,
@@ -46,9 +42,7 @@ export const parseXml = (data: any) =>
 		tagValueProcessor: (a) => he.decode(a),
 	})
 
-export const createServerAndClient = async function createServerAndClient(
-	options: any,
-) {
+export async function createServerAndClient(options: any) {
 	const s3rver = new S3rver(options)
 	const { port } = await s3rver.run()
 	instances.add(s3rver)

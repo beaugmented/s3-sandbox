@@ -8,7 +8,7 @@ import xmlParser from "./xml.ts"
 import S3Error from "./models/error.ts"
 import { type S3Context } from "./types.ts"
 
-export const walk = function* walk(
+export function* walk(
 	dir: string,
 	recurseFilter?: (path: string) => boolean,
 ): Generator<string> {
@@ -23,7 +23,7 @@ export const walk = function* walk(
 	}
 }
 
-export const capitalizeHeader = function (header: string) {
+export function capitalizeHeader(header: string) {
 	const exceptions: Record<string, string> = {
 		"content-md5": "Content-MD5",
 		dnt: "DNT",
@@ -47,7 +47,7 @@ export const capitalizeHeader = function (header: string) {
 		.join("-")
 }
 
-export const concatStreams = function (streams: any) {
+export function concatStreams(streams: any) {
 	const passThrough = new PassThrough()
 	streams = [...streams]
 	const pipeNext = (stream: any) => {
@@ -66,25 +66,25 @@ export const concatStreams = function (streams: any) {
  *
  * @param string
  */
-export const encodeURIComponentRFC3986 = function (string: string): string {
+export function encodeURIComponentRFC3986(string: string): string {
 	return encodeURIComponent(string).replace(
 		/[!'()*]/g,
 		(ch) => "%" + ch.charCodeAt(0).toString(16).toUpperCase(),
 	)
 }
 
-export const getXmlRootTag = function (xml: string) {
+export function getXmlRootTag(xml: string) {
 	return xmlParser.getRootTag(xml.toString())
 }
 
-export const randomBase64String = function (length: number) {
+export function randomBase64String(length: number) {
 	return crypto
 		.randomBytes(Math.ceil((length * 3) / 4))
 		.toString("base64")
 		.slice(0, length)
 }
 
-export const randomHexString = function (length: number) {
+export function randomHexString(length: number) {
 	return crypto
 		.randomBytes(Math.ceil(length / 2))
 		.toString("hex")
@@ -102,9 +102,7 @@ export {
  *
  * @param ctx
  */
-export const xmlBodyParser = async function xmlBodyParser(
-	ctx: S3Context,
-): Promise<void> {
+export async function xmlBodyParser(ctx: S3Context): Promise<void> {
 	const { req } = ctx
 	const xmlString = await new Promise<string>((resolve, reject) => {
 		let payload = ""
@@ -129,7 +127,7 @@ export const xmlBodyParser = async function xmlBodyParser(
  *
  * @param ctx
  */
-export const utf8BodyParser = async function (ctx: S3Context): Promise<void> {
+export async function utf8BodyParser(ctx: S3Context): Promise<void> {
 	const { req } = ctx
 	ctx.request.body = await new Promise((resolve, reject) => {
 		let payload = ""
@@ -139,7 +137,7 @@ export const utf8BodyParser = async function (ctx: S3Context): Promise<void> {
 	})
 }
 
-export const ensureDir = async function (dirPath: string) {
+export async function ensureDir(dirPath: string) {
 	const options = { recursive: true, mode: 0o0755 }
 	if (process.platform === "win32") {
 		options.mode = 0o0755

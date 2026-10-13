@@ -13,7 +13,7 @@ import { type S3Context } from "../types.ts"
  * sender of the request.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTServiceGET.html}
  */
-export const getService = async function getService(ctx: S3Context) {
+export async function getService(ctx: S3Context) {
 	const buckets = await ctx.store.listBuckets()
 	ctx.logger.info("Fetched %d buckets", buckets.length)
 	ctx.body = {

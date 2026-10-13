@@ -6,7 +6,7 @@ import xmlParser from "../xml.ts"
 import S3Error from "./error.ts"
 import RoutingRule from "./routing-rule.ts"
 
-export const getConfigModel = function getConfigModel(type: any) {
+export function getConfigModel(type: any) {
 	switch (type) {
 		case "cors":
 			return S3CorsConfiguration
