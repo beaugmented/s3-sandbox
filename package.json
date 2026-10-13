@@ -16,7 +16,7 @@
     "email": "hello@jamiehall.eu",
     "url": "http://github.com/jamhall/s3rver"
   },
-  "license": "MIT",
+  "license": "MPL-2.0",
   "repository": {
     "type": "git",
     "url": "git@github.com:jamhall/s3rver.git"
@@ -33,6 +33,8 @@
   },
   "main": "lib/s3rver.js",
   "files": [
+    "NOTICE",
+    "LICENSES/",
     "lib/",
     "example/*.xml"
   ],

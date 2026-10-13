@@ -1,0 +1,25 @@
+s3-sandbox licensing and attribution
+===================================
+
+This fork, including its modifications and new contributions, is distributed
+under the Mozilla Public License, version 2.0 (MPL-2.0). See LICENSE.
+
+This Source Code Form is subject to the terms of the Mozilla Public License,
+v. 2.0. If a copy of the MPL was not distributed with this file, You can obtain
+one at https://mozilla.org/MPL/2.0/.
+
+Upstream S3rver material
+-----------------------
+
+This project derives from Jamie Hall's S3rver:
+https://github.com/jamhall/s3rver
+
+The inherited material is the source, tests, fixtures, XML examples, and
+associated documentation from the upstream repository through commit
+f834192dbb07da4548b48c95066bae50cfaac819. This includes the original lib/, bin/,
+test/, and example/ trees and their adapted counterparts in this fork.
+
+The upstream material was distributed under the MIT license. Its original
+copyright, permission notice, and warranty disclaimer are preserved verbatim
+in LICENSES/MIT.txt and continue to apply to those inherited portions.
+The fork's MPL-2.0 licensing does not replace the upstream MIT grant.
