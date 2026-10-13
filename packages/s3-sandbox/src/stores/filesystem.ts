@@ -1,9 +1,11 @@
+import { parseMetadata, type ObjectMetadata } from "../metadata.ts"
+import { type TransformCallback, type Readable } from "node:stream"
+import { hasErrorCode } from "../error-tools.ts"
 import { Temporal } from "@js-temporal/polyfill"
 import { iso8601FromInstant, toHttpDate } from "../temporal-tools.ts"
 import pick from "lodash/pick.js"
 import pickBy from "lodash/pickBy.js"
 import sortBy from "lodash/sortBy.js"
-import zip from "lodash/zip.js"
 import crypto from "node:crypto"
 import {
 	createReadStream,
@@ -16,7 +18,6 @@ import path from "node:path"
 import { pipeline, Transform } from "node:stream"
 import { format } from "node:util"
 
-import { type Readable } from "node:stream"
 import S3Bucket from "../models/bucket.ts"
 import {
 	getConfigModel,
@@ -77,26 +78,26 @@ class FilesystemStore {
 		const [storedMetadata, md5] = await Promise.all([
 			fs
 				.readFile(metadataPath)
-				.then((data) => JSON.parse(data.toString("utf8")))
-				.catch((err: any) => {
-					if (err.code === "ENOENT") return undefined
+				.then((data) => parseMetadata(data.toString("utf8")))
+				.catch((err: unknown) => {
+					if (hasErrorCode(err, "ENOENT")) return undefined
 					throw err
 				}),
 			fs
 				.readFile(`${objectPath}.md5`)
-				.then((md5) => md5.toString())
-				.catch(async (err: any) => {
-					if (err.code !== "ENOENT") throw err
+				.then((digest) => digest.toString())
+				.catch(async (err: unknown) => {
+					if (!hasErrorCode(err, "ENOENT")) throw err
 					// create the md5 file if it doesn't already exist
-					const md5 = await new Promise<string>((resolve, reject) => {
+					const digest = await new Promise<string>((resolve, reject) => {
 						const stream = createReadStream(objectPath)
 						const md5Context = crypto.createHash("md5")
 						stream.on("error", reject)
 						stream.on("data", (chunk) => md5Context.update(chunk, "utf8"))
 						stream.on("end", () => resolve(md5Context.digest("hex")))
 					})
-					await fs.writeFile(`${objectPath}.md5`, md5)
-					return md5
+					await fs.writeFile(`${objectPath}.md5`, digest)
+					return digest
 				}),
 		])
 
@@ -110,13 +111,18 @@ class FilesystemStore {
 		}
 	}
 
-	async putMetadata(bucket: string, key: string, metadata: any, md5?: string) {
+	async putMetadata(
+		bucket: string,
+		key: string,
+		metadata: ObjectMetadata,
+		md5?: string,
+	) {
 		const metadataPath = this.getResourcePath(bucket, key, "metadata.json")
 		const md5Path = this.getResourcePath(bucket, key, "object.md5")
 
 		const json = {
 			...pick(metadata, S3Object.ALLOWED_METADATA),
-			...pickBy(metadata, (value: any, key) => key.startsWith("x-amz-meta-")),
+			...pickBy(metadata, (_value, name) => name.startsWith("x-amz-meta-")),
 		}
 
 		if (md5) await fs.writeFile(md5Path, md5)
@@ -141,7 +147,11 @@ class FilesystemStore {
 				pipeline(
 					content,
 					new Transform({
-						transform(chunk: Buffer, encoding: any, callback: any) {
+						transform(
+							chunk: Buffer,
+							encoding: BufferEncoding,
+							callback: TransformCallback,
+						) {
 							md5Context.update(chunk, encoding)
 							totalLength += chunk.length
 							callback(null, chunk)
@@ -187,8 +197,8 @@ class FilesystemStore {
 					Temporal.Instant.fromEpochMilliseconds(Math.trunc(stat.birthtimeMs)),
 				),
 			)
-		} catch (err: any) {
-			if (err.code === "ENOENT") return null
+		} catch (err: unknown) {
+			if (hasErrorCode(err, "ENOENT")) return null
 			throw err
 		}
 	}
@@ -203,7 +213,15 @@ class FilesystemStore {
 		return fs.rm(this.getBucketPath(bucket), { recursive: true, force: true })
 	}
 
-	async listObjects(bucket: string, options: any) {
+	async listObjects(
+		bucket: string,
+		options: {
+			delimiter?: string | undefined
+			startAfter?: string | undefined
+			prefix?: string | undefined
+			maxKeys?: number
+		},
+	) {
 		const {
 			delimiter = "",
 			startAfter = "",
@@ -221,7 +239,7 @@ class FilesystemStore {
 			"/",
 		)
 
-		const it = walk(bucketPath, (dirPath: any) => {
+		const it = walk(bucketPath, (dirPath) => {
 			// avoid directories occurring before the startAfter parameter
 			if (dirPath < startAfterPath && startAfterPath.indexOf(dirPath) === -1) {
 				return false
@@ -243,7 +261,7 @@ class FilesystemStore {
 
 		const commonPrefixes = new Set<string>()
 		const objectSuffix = format(S3RVER_SUFFIX, "", "object")
-		const keys: any[] = []
+		const keys: string[] = []
 		let isTruncated = false
 		for (const keyPath of it) {
 			if (!keyPath.endsWith(objectSuffix)) {
@@ -276,19 +294,20 @@ class FilesystemStore {
 		}
 
 		const metadataArr = await Promise.all(
-			keys.map((key: any) =>
-				this.getMetadata(bucket, key).catch((err: any) => {
-					if (err.code === "ENOENT") return undefined
+			keys.map((key) =>
+				this.getMetadata(bucket, key).catch((err: unknown) => {
+					if (hasErrorCode(err, "ENOENT")) return undefined
 					throw err
 				}),
 			),
 		)
 
 		return {
-			objects: zip(keys, metadataArr)
-				.filter(([, metadata]) => metadata !== undefined)
-				.map(([key, metadata]) => new S3Object(bucket, key, null, metadata)),
-			commonPrefixes: [...commonPrefixes].sort((a, b) =>
+			objects: keys.flatMap((key, index) => {
+				const metadata = metadataArr[index]
+				return metadata ? [new S3Object(bucket, key, null, metadata)] : []
+			}),
+			commonPrefixes: [...commonPrefixes].toSorted((a, b) =>
 				a < b ? -1 : a > b ? 1 : 0,
 			),
 			isTruncated,
@@ -300,8 +319,8 @@ class FilesystemStore {
 		try {
 			await fs.stat(objectPath)
 			return true
-		} catch (err: any) {
-			if (err.code === "ENOENT") return false
+		} catch (err: unknown) {
+			if (hasErrorCode(err, "ENOENT")) return false
 			throw err
 		}
 	}
@@ -313,8 +332,9 @@ class FilesystemStore {
 	) {
 		try {
 			const metadata = await this.getMetadata(bucket, key)
-			const lastByte = Math.max(0, Number(metadata["content-length"]) - 1)
+			const lastByte = Math.max(0, metadata["content-length"] - 1)
 			const range = {
+				// TODO: preserve an explicit end of zero; see docs/implementation-review.md.
 				start: (options && options.start) || 0,
 				end: Math.min((options && options.end) || Infinity, lastByte),
 			}
@@ -341,8 +361,8 @@ class FilesystemStore {
 				object.range = range
 			}
 			return object
-		} catch (err: any) {
-			if (err.code === "ENOENT") return null
+		} catch (err: unknown) {
+			if (hasErrorCode(err, "ENOENT")) return null
 			throw err
 		}
 	}
@@ -363,7 +383,7 @@ class FilesystemStore {
 		srcKey: string,
 		destBucket: string,
 		destKey: string,
-		replacementMetadata: any,
+		replacementMetadata: ObjectMetadata | null,
 	) {
 		const srcObjectPath = this.getResourcePath(srcBucket, srcKey, "object")
 		const destObjectPath = this.getResourcePath(destBucket, destKey, "object")
@@ -400,8 +420,8 @@ class FilesystemStore {
 				this.getResourcePath(bucket, key, "object.md5"),
 				this.getResourcePath(bucket, key, "metadata.json"),
 			].map((filePath) =>
-				fs.unlink(filePath).catch((err: any) => {
-					if (err.code !== "ENOENT") throw err
+				fs.unlink(filePath).catch((err: unknown) => {
+					if (!hasErrorCode(err, "ENOENT")) throw err
 				}),
 			),
 		)
@@ -414,6 +434,7 @@ class FilesystemStore {
 			parts.length &&
 			!readdirSync(path.join(bucketPath, ...parts)).length
 		) {
+			// oxlint-disable-next-line eslint/no-await-in-loop -- Remove each empty child before checking its parent.
 			await fs.rmdir(path.join(bucketPath, ...parts))
 			parts.pop()
 		}
@@ -423,7 +444,7 @@ class FilesystemStore {
 		bucket: string,
 		key: string,
 		uploadId: string,
-		metadata: any,
+		metadata: ObjectMetadata,
 	) {
 		const uploadDir = path.join(
 			this.getResourcePath(bucket, undefined, "uploads"),
@@ -442,7 +463,7 @@ class FilesystemStore {
 		bucket: string,
 		uploadId: string,
 		partNumber: number,
-		content: any,
+		content: Readable | Buffer,
 	) {
 		const partPath = path.join(
 			this.getResourcePath(bucket, undefined, "uploads"),
@@ -457,7 +478,12 @@ class FilesystemStore {
 		return { size, md5 }
 	}
 
-	async putObjectMultipart(bucket: string, uploadId: string, parts: any) {
+	async putObjectMultipart(
+		bucket: string,
+		uploadId: string,
+		parts: Array<{ number: number; etag: string }>,
+	) {
+		// TODO: check submitted ETags and part constraints; see docs/implementation-review.md.
 		const uploadDir = path.join(
 			this.getResourcePath(bucket, undefined, "uploads"),
 			uploadId,
@@ -466,11 +492,10 @@ class FilesystemStore {
 			fs.readFile(path.join(uploadDir, "key")).then((data) => data.toString()),
 			fs
 				.readFile(path.join(uploadDir, "metadata"))
-				.then((data) => JSON.parse(data.toString("utf8"))),
+				.then((data) => parseMetadata(data.toString("utf8"))),
 		])
-		const partStreams = sortBy(parts, (part: any) => part.number).map(
-			(part: any) =>
-				createReadStream(path.join(uploadDir, part.number.toString())),
+		const partStreams = sortBy(parts, (part) => part.number).map((part) =>
+			createReadStream(path.join(uploadDir, part.number.toString())),
 		)
 		const object = new S3Object(
 			bucket,
@@ -522,13 +547,20 @@ class FilesystemStore {
 		try {
 			const data = await fs.readFile(resourcePath)
 			return new Model(data.toString())
-		} catch (err: any) {
-			if (err.code === "ENOENT") return null
+		} catch (err: unknown) {
+			if (hasErrorCode(err, "ENOENT")) return null
 			throw err
 		}
 	}
 
-	async putSubresource(bucket: string, key: string | undefined, resource: any) {
+	async putSubresource(
+		bucket: string,
+		key: string | undefined,
+		resource:
+			| S3CorsConfiguration
+			| S3WebsiteConfiguration
+			| TaggingConfiguration,
+	) {
 		const resourcePath = this.getResourcePath(
 			bucket,
 			key,
@@ -549,8 +581,8 @@ class FilesystemStore {
 		)
 		try {
 			await fs.unlink(resourcePath)
-		} catch (err: any) {
-			if (err.code !== "ENOENT") throw err
+		} catch (err: unknown) {
+			if (!hasErrorCode(err, "ENOENT")) throw err
 		}
 	}
 

@@ -2,10 +2,10 @@ import http from "node:http"
 import https from "node:https"
 import type { Readable } from "node:stream"
 
-type Response = {
+export type HttpResponse = {
 	statusCode: number
 	headers: http.IncomingHttpHeaders
-	body: any
+	body: string | Buffer
 }
 type Options = {
 	baseUrl?: string
@@ -18,8 +18,8 @@ type Options = {
 }
 
 export class HttpError extends Error {
-	response: Response
-	constructor(response: Response) {
+	response: HttpResponse
+	constructor(response: HttpResponse) {
 		super(`HTTP ${response.statusCode}: ${String(response.body)}`)
 		this.response = response
 	}
@@ -30,7 +30,7 @@ async function request(
 	uri: string | URL,
 	options: Options = {},
 	redirects = 0,
-): Promise<Response> {
+): Promise<HttpResponse> {
 	const url = new URL(uri, options.baseUrl)
 	if (options.qs) {
 		const entries =
@@ -41,13 +41,13 @@ async function request(
 			url.searchParams.set(name, String(value))
 	}
 	const transport = url.protocol === "https:" ? https : http
-	const response = await new Promise<Response>((resolve, reject) => {
+	const response = await new Promise<HttpResponse>((resolve, reject) => {
 		const req = transport.request(
 			url,
 			{ method: options.method ?? "GET", headers: options.headers },
 			(res) => {
 				const chunks: Buffer[] = []
-				res.on("data", (chunk: any) => chunks.push(Buffer.from(chunk)))
+				res.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)))
 				res.on("error", reject)
 				res.on("end", () => {
 					const bytes = Buffer.concat(chunks)

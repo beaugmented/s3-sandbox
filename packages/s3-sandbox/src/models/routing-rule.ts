@@ -1,11 +1,15 @@
+import type { XmlRecord } from "../xml-record.ts"
 class RoutingRule {
-	constructor(config: any) {
+	constructor(config: XmlRecord) {
 		this.condition = config.Condition
 		this.redirect = config.Redirect
 		this.statusCode = (this.redirect && this.redirect.HttpRedirectCode) || 301
 	}
 
-	getRedirectLocation(key: string, defaults: any) {
+	getRedirectLocation(
+		key: string,
+		defaults: { protocol: string; hostname: string },
+	) {
 		let redirectKey = key
 
 		if (this.redirect.ReplaceKeyPrefixWith) {
@@ -49,9 +53,17 @@ class RoutingRule {
 		return false
 	}
 
-	declare condition: any
-	declare redirect: any
-	declare statusCode: any
+	declare condition:
+		| { KeyPrefixEquals?: string; HttpErrorCodeReturnedEquals?: number }
+		| undefined
+	declare redirect: {
+		ReplaceKeyPrefixWith?: string
+		ReplaceKeyWith?: string
+		Protocol?: string
+		HostName?: string
+		HttpRedirectCode?: number
+	}
+	declare statusCode: number
 }
 
 export default RoutingRule

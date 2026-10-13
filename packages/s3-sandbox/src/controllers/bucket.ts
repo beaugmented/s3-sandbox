@@ -157,25 +157,25 @@ export async function getBucket(ctx: S3Context) {
 		prefix?: string | undefined
 		fetchOwner?: boolean | undefined
 	} = {
-		delimiter: ctx.query.delimiter || undefined,
-		encodingType: ctx.query["encoding-type"], // currently unimplemented
+		delimiter: ctx.s3Query.delimiter || undefined,
+		encodingType: ctx.s3Query["encoding-type"], // currently unimplemented
 		maxKeys: 1000,
 		startAfter: undefined,
-		prefix: ctx.query.prefix || undefined,
+		prefix: ctx.s3Query.prefix || undefined,
 		fetchOwner: undefined,
 	}
-	if (ctx.query["max-keys"]) {
-		if (!ctx.query["max-keys"].match(/^-?\d+$/)) {
+	if (ctx.s3Query["max-keys"]) {
+		if (!ctx.s3Query["max-keys"].match(/^-?\d+$/)) {
 			throw new S3Error(
 				"InvalidArgument",
 				"Provided max-keys not an integer or within integer range",
 				{
 					ArgumentName: "max-keys",
-					ArgumentValue: ctx.query["max-keys"],
+					ArgumentValue: ctx.s3Query["max-keys"],
 				},
 			)
 		}
-		const maxKeys = Number(ctx.query["max-keys"])
+		const maxKeys = Number(ctx.s3Query["max-keys"])
 		if (maxKeys < 0 || maxKeys > 2147483647) {
 			throw new S3Error(
 				"InvalidArgument",
@@ -188,17 +188,19 @@ export async function getBucket(ctx: S3Context) {
 		}
 		options.maxKeys = Math.min(1000, maxKeys)
 	}
-	switch (ctx.query["list-type"]) {
+	switch (ctx.s3Query["list-type"]) {
 		case "2":
-			if ("marker" in ctx.query) {
+			if ("marker" in ctx.s3Query) {
 				throw new S3Error(
 					"InvalidArgument",
 					"Marker unsupported with REST.GET.BUCKET in list-type=2",
 					{ ArgumentName: "marker" },
 				)
 			}
-			if (ctx.query["continuation-token"]) {
-				const token = decipherContinuationToken(ctx.query["continuation-token"])
+			if (ctx.s3Query["continuation-token"]) {
+				const token = decipherContinuationToken(
+					ctx.s3Query["continuation-token"],
+				)
 				const [, region, bucket, startAfter] =
 					/([\w-.]+)\/([\w-.]+)\/(.+)/.exec(token) || []
 				if (region !== "us-east-1" || bucket !== ctx.params.bucket) {
@@ -210,20 +212,20 @@ export async function getBucket(ctx: S3Context) {
 				}
 				options.startAfter = startAfter
 			} else {
-				options.startAfter = ctx.query["start-after"]
+				options.startAfter = ctx.s3Query["start-after"]
 			}
-			options.fetchOwner = ctx.query["fetch-owner"] === "true"
+			options.fetchOwner = ctx.s3Query["fetch-owner"] === "true"
 			break
 		default:
 			// fall back to version 1
-			if ("continuation-token" in ctx.query) {
+			if ("continuation-token" in ctx.s3Query) {
 				throw new S3Error(
 					"InvalidArgument",
 					"continuation-token only supported in REST.GET.BUCKET with list-type=2",
 					{ ArgumentName: "continuation-token" },
 				)
 			}
-			if ("start-after" in ctx.query) {
+			if ("start-after" in ctx.s3Query) {
 				throw new S3Error(
 					"InvalidArgument",
 					// yes, for some reason they decided to camelCase the start-after argument in this error message
@@ -232,7 +234,7 @@ export async function getBucket(ctx: S3Context) {
 				)
 			}
 			options.fetchOwner = true
-			options.startAfter = ctx.query.marker
+			options.startAfter = ctx.s3Query.marker
 			break
 	}
 	ctx.logger.info(
@@ -259,12 +261,12 @@ export async function getBucket(ctx: S3Context) {
 				"@": { xmlns: "http://doc.s3.amazonaws.com/2006-03-01/" },
 				Name: ctx.params.bucket,
 				Prefix: options.prefix || "", // never omit
-				...(ctx.query["list-type"] === "2"
+				...(ctx.s3Query["list-type"] === "2"
 					? {
-							StartAfter: ctx.query["continuation-token"]
+							StartAfter: ctx.s3Query["continuation-token"]
 								? undefined
 								: options.startAfter,
-							ContinuationToken: ctx.query["continuation-token"] || undefined,
+							ContinuationToken: ctx.s3Query["continuation-token"] || undefined,
 							NextContinuationToken: result.isTruncated
 								? generateContinuationToken(
 										ctx.params.bucket,
@@ -281,7 +283,7 @@ export async function getBucket(ctx: S3Context) {
 									? result.objects[result.objects.length - 1]!.key
 									: undefined,
 						}),
-				MaxKeys: ctx.query["max-keys"] || 1000, // S3 has a hard limit at 1000 but will still echo back the original input
+				MaxKeys: ctx.s3Query["max-keys"] || 1000, // S3 has a hard limit at 1000 but will still echo back the original input
 				Delimiter: options.delimiter || undefined, // omit when "" or undefined
 				IsTruncated: result.isTruncated || false,
 				Contents: result.objects.map((object) => ({
@@ -302,7 +304,7 @@ export async function getBucket(ctx: S3Context) {
 				})),
 			},
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error listing objects in bucket "%s"',
 			ctx.params.bucket,
@@ -431,8 +433,8 @@ export async function putBucket(ctx: S3Context) {
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTcors.html}
  */
 export async function putBucketCors(ctx: S3Context) {
-	await utf8BodyParser(ctx)
-	const config = S3CorsConfiguration.validate(ctx.request.body)
+	const body = await utf8BodyParser(ctx)
+	const config = S3CorsConfiguration.validate(body)
 	await ctx.store.putSubresource(ctx.params.bucket, undefined, config)
 	ctx.body = ""
 }
@@ -446,8 +448,8 @@ export async function putBucketCors(ctx: S3Context) {
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTwebsite.html}
  */
 export async function putBucketWebsite(ctx: S3Context) {
-	await utf8BodyParser(ctx)
-	const config = S3WebsiteConfiguration.validate(ctx.request.body)
+	const body = await utf8BodyParser(ctx)
+	const config = S3WebsiteConfiguration.validate(body)
 	await ctx.store.putSubresource(ctx.params.bucket, undefined, config)
 	ctx.body = ""
 }

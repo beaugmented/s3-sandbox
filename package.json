@@ -16,7 +16,7 @@
 		"release:version": "changeset version",
 		"release:publish": "pnpm build && changeset publish",
 		"workflows:update": "./scripts/update-workflows.node.ts",
-		"check:vp": "vp check --no-fmt",
+		"check:vp": "vp lint --deny-warnings --report-unused-disable-directives",
 		"staged": "vp staged",
 		"cov": "vp run -r --no-cache cov"
 	},

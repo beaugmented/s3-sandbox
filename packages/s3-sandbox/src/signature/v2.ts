@@ -1,8 +1,9 @@
+import type { V2Request } from "./types.ts"
 import { Temporal } from "@js-temporal/polyfill"
 import S3Error from "../models/error.ts"
 
-export function parseHeader(headers: any) {
-	const [, ...components] = headers.authorization.split(" ")
+export function parseHeader(headers: Record<string, string>) {
+	const [, ...components] = (headers.authorization ?? "").split(" ")
 
 	if (components.length !== 1) {
 		throw new S3Error(
@@ -15,7 +16,7 @@ export function parseHeader(headers: any) {
 		)
 	}
 
-	const match = /([^:]*):([^:]+)/.exec(components[0])
+	const match = /([^:]*):([^:]+)/.exec(components[0] ?? "")
 	if (!match) {
 		throw new S3Error(
 			"InvalidArgument",
@@ -27,10 +28,10 @@ export function parseHeader(headers: any) {
 		)
 	}
 
-	return { accessKeyId: match[1], signatureProvided: match[2] }
+	return { accessKeyId: match[1] ?? "", signatureProvided: match[2] ?? "" }
 }
 
-export function parseQuery(query: any) {
+export function parseQuery(query: Record<string, string>): V2Request {
 	// authentication param names are case-sensitive
 	if (!("Expires" in query) || !("AWSAccessKeyId" in query)) {
 		throw new S3Error(
@@ -42,13 +43,13 @@ export function parseQuery(query: any) {
 
 	const request = {
 		signature: {
-			version: 2,
-			algorithm: "sha1",
-			encoding: "base64",
+			version: 2 as const,
+			algorithm: "sha1" as const,
+			encoding: "base64" as const,
 		},
 		accessKeyId: query.AWSAccessKeyId,
 		expires: Number(query.Expires),
-		signatureProvided: query.Signature,
+		signatureProvided: query.Signature ?? "",
 	}
 
 	const serverTime = Temporal.Now.instant()
@@ -83,7 +84,7 @@ export function getStringToSign(canonicalRequest: {
 	method: string
 	contentMD5?: string
 	contentType?: string
-	timestamp: string | number
+	timestamp: string | number | undefined
 	amzHeaders: string[]
 	querystring: string
 	uri: string

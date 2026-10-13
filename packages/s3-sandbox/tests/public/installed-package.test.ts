@@ -1,3 +1,5 @@
+import { asError } from "../../src/error-tools.ts"
+import { jsonObject } from "../../src/json.ts"
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test"
 import { execFileSync } from "node:child_process"
 import {
@@ -24,11 +26,10 @@ const pnpm = (args: string[], cwd: string) => {
 				})
 			: execFileSync(manager, args, { cwd, encoding: "utf8", timeout: 120000 })
 	} catch (error) {
-		const output = error as Error & { stdout?: string; stderr?: string }
-		throw new Error(
-			`${output.message}\n${output.stdout ?? ""}\n${output.stderr ?? ""}`,
-			{ cause: error },
-		)
+		const output = asError(error)
+		const stdout = "stdout" in output ? String(output.stdout) : ""
+		const stderr = "stderr" in output ? String(output.stderr) : ""
+		throw new Error(`${output.message}\n${stdout}\n${stderr}`, { cause: error })
 	}
 }
 let consumer: string
@@ -88,9 +89,9 @@ try {
 			consumer,
 			"node_modules/@beaugmented/s3-sandbox",
 		)
-		const metadata = JSON.parse(
+		const metadata = jsonObject(
 			readFileSync(path.join(installed, "package.json"), "utf8"),
-		) as { name: string; version: string; license: string }
+		)
 		expect(metadata.name).toBe("@beaugmented/s3-sandbox")
 		const cli = path.join(installed, "dist/cli.mjs")
 		expect(readFileSync(cli, "utf8")).toMatch(/^#!\/usr\/bin\/env node/)

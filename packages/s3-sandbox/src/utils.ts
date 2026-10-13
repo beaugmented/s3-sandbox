@@ -1,9 +1,11 @@
+import type { XmlRecord } from "./xml-record.ts"
+import type { Readable } from "node:stream"
 import * as he from "he"
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import { PassThrough } from "node:stream"
-import xmlParser from "./xml.ts"
+import * as xmlParser from "./xml.ts"
 
 import S3Error from "./models/error.ts"
 import { type S3Context } from "./types.ts"
@@ -47,16 +49,19 @@ export function capitalizeHeader(header: string) {
 		.join("-")
 }
 
-export function concatStreams(streams: any) {
+export function concatStreams(streams: Iterable<Readable>) {
 	const passThrough = new PassThrough()
-	streams = [...streams]
-	const pipeNext = (stream: any) => {
-		if (!stream) return passThrough.end()
+	const pending = [...streams]
+	const pipeNext = (stream: Readable | undefined) => {
+		if (!stream) {
+			passThrough.end()
+			return
+		}
 
-		stream.once("end", () => pipeNext(streams.shift()))
+		stream.once("end", () => pipeNext(pending.shift()))
 		stream.pipe(passThrough, { end: false })
 	}
-	pipeNext(streams.shift())
+	pipeNext(pending.shift())
 	return passThrough
 }
 
@@ -74,7 +79,7 @@ export function encodeURIComponentRFC3986(string: string): string {
 }
 
 export function getXmlRootTag(xml: string) {
-	return xmlParser.getRootTag(xml.toString())
+	return xmlParser.getRootTag(xml)
 }
 
 export function randomBase64String(length: number) {
@@ -102,11 +107,11 @@ export {
  *
  * @param ctx
  */
-export async function xmlBodyParser(ctx: S3Context): Promise<void> {
+export async function xmlBodyParser(ctx: S3Context): Promise<XmlRecord> {
 	const { req } = ctx
 	const xmlString = await new Promise<string>((resolve, reject) => {
 		let payload = ""
-		req.on("data", (data: any) => (payload += data.toString("utf8")))
+		req.on("data", (data: Buffer) => (payload += data.toString("utf8")))
 		req.on("end", () => resolve(payload))
 		req.on("error", reject)
 	})
@@ -117,9 +122,11 @@ export async function xmlBodyParser(ctx: S3Context): Promise<void> {
 				"our published schema.",
 		)
 	}
-	ctx.request.body = xmlParser.parse(xmlString, {
+	const body = xmlParser.parse(xmlString, {
 		tagValueProcessor: (a) => he.decode(a),
 	})
+	ctx.request.body = body
+	return body
 }
 
 /**
@@ -127,14 +134,16 @@ export async function xmlBodyParser(ctx: S3Context): Promise<void> {
  *
  * @param ctx
  */
-export async function utf8BodyParser(ctx: S3Context): Promise<void> {
+export async function utf8BodyParser(ctx: S3Context): Promise<string> {
 	const { req } = ctx
-	ctx.request.body = await new Promise((resolve, reject) => {
+	const body = await new Promise<string>((resolve, reject) => {
 		let payload = ""
-		req.on("data", (data: any) => (payload += data.toString("utf8")))
+		req.on("data", (data: Buffer) => (payload += data.toString("utf8")))
 		req.on("end", () => resolve(payload))
 		req.on("error", reject)
 	})
+	ctx.request.body = body
+	return body
 }
 
 export async function ensureDir(dirPath: string) {

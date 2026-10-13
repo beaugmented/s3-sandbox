@@ -1,84 +1,98 @@
+import { z } from "zod"
+import type { ObjectMetadata } from "../metadata.ts"
 import { Temporal } from "@js-temporal/polyfill"
 import { isoNow } from "../temporal-tools.ts"
 import crypto from "node:crypto"
 
 import { randomHexString } from "../utils.ts"
 
-class S3Event {
-	constructor(eventData: any, reqParams: any) {
-		const { reqHeaders, sourceIp } = reqParams
-		let eventName = ""
-		const s3Object: {
-			key: string
-			sequencer: string
-			size?: number
-			eTag?: string
-		} = {
-			key: eventData.S3Item.key,
-			sequencer: Temporal.Now.instant()
-				.epochMilliseconds.toString(16)
-				.toUpperCase(),
-		}
-		switch (eventData.eventType) {
-			case "Copy":
-				eventName = "ObjectCreated:Copy"
-				s3Object.size = eventData.S3Item.size
-				break
+export type S3EventData = { bucket: string } & (
+	| { eventType: "Delete"; S3Item: { key: string } }
+	| { eventType: "Copy"; S3Item: { key: string; size: number } }
+	| {
+			eventType: "Put" | "Post"
+			S3Item: { key: string; size: number; metadata: ObjectMetadata }
+	  }
+)
 
-			case "Put":
-				eventName = "ObjectCreated:Put"
-				s3Object.size = eventData.S3Item.size
-				s3Object.eTag = JSON.parse(eventData.S3Item.metadata.etag)
-				break
+export function createS3Event(
+	eventData: S3EventData,
+	reqParams: { reqHeaders: Record<string, string>; sourceIp: string },
+) {
+	const { reqHeaders, sourceIp } = reqParams
+	let eventName = ""
+	const s3Object: {
+		key: string
+		sequencer: string
+		size?: number
+		eTag?: string
+	} = {
+		key: eventData.S3Item.key,
+		sequencer: Temporal.Now.instant()
+			.epochMilliseconds.toString(16)
+			.toUpperCase(),
+	}
+	switch (eventData.eventType) {
+		case "Copy":
+			eventName = "ObjectCreated:Copy"
+			s3Object.size = eventData.S3Item.size
+			break
 
-			case "Post":
-				eventName = "ObjectCreated:Post"
-				s3Object.size = eventData.S3Item.size
-				s3Object.eTag = JSON.parse(eventData.S3Item.metadata.etag)
-				break
+		case "Put":
+			eventName = "ObjectCreated:Put"
+			s3Object.size = eventData.S3Item.size
+			s3Object.eTag = z
+				.string()
+				.parse(JSON.parse(String(eventData.S3Item.metadata.etag)))
+			break
 
-			case "Delete":
-				eventName = "ObjectRemoved:Delete"
-				break
-		}
+		case "Post":
+			eventName = "ObjectCreated:Post"
+			s3Object.size = eventData.S3Item.size
+			s3Object.eTag = z
+				.string()
+				.parse(JSON.parse(String(eventData.S3Item.metadata.etag)))
+			break
 
-		return {
-			Records: [
-				{
-					eventVersion: "2.0",
-					eventSource: "aws:s3",
-					awsRegion: "us-east-1",
-					eventTime: isoNow(),
-					eventName: eventName,
-					userIdentity: {
-						principalId: "AWS:" + randomHexString(21).toUpperCase(),
-					},
-					requestParameters: {
-						sourceIPAddress: sourceIp,
-					},
-					responseElements: {
-						"x-amz-request-id": randomHexString(16).toUpperCase(),
-						"x-amz-id-2": crypto
-							.createHash("sha256")
-							.update(reqHeaders.host)
-							.digest("base64"),
-					},
-					s3: {
-						s3SchemaVersion: "1.0",
-						configurationId: "testConfigId",
-						bucket: {
-							name: eventData.bucket,
-							ownerIdentity: {
-								principalId: randomHexString(14).toUpperCase(),
-							},
-							arn: "arn:aws:s3: : :" + eventData.bucket,
-						},
-						object: s3Object,
-					},
+		case "Delete":
+			eventName = "ObjectRemoved:Delete"
+			break
+	}
+
+	return {
+		Records: [
+			{
+				eventVersion: "2.0",
+				eventSource: "aws:s3",
+				awsRegion: "us-east-1",
+				eventTime: isoNow(),
+				eventName: eventName,
+				userIdentity: {
+					principalId: "AWS:" + randomHexString(21).toUpperCase(),
 				},
-			],
-		}
+				requestParameters: {
+					sourceIPAddress: sourceIp,
+				},
+				responseElements: {
+					"x-amz-request-id": randomHexString(16).toUpperCase(),
+					"x-amz-id-2": crypto
+						.createHash("sha256")
+						.update(reqHeaders.host ?? "")
+						.digest("base64"),
+				},
+				s3: {
+					s3SchemaVersion: "1.0",
+					configurationId: "testConfigId",
+					bucket: {
+						name: eventData.bucket,
+						ownerIdentity: {
+							principalId: randomHexString(14).toUpperCase(),
+						},
+						arn: "arn:aws:s3: : :" + eventData.bucket,
+					},
+					object: s3Object,
+				},
+			},
+		] as const,
 	}
 }
-
-export default S3Event

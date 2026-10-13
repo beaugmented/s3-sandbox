@@ -1,3 +1,9 @@
+import {
+	nextS3Event,
+	createServerAndClient,
+	generateTestObjects,
+} from "./helpers.ts"
+import { type TestS3Client } from "./helpers.ts"
 import { Temporal } from "@js-temporal/polyfill"
 import AWS from "aws-sdk"
 import express from "express"
@@ -7,8 +13,6 @@ import { once } from "node:events"
 import fs from "node:fs"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
 import request from "./http.ts"
-
-import { createServerAndClient, generateTestObjects } from "./helpers.ts"
 
 import S3rver from "../../src/s3rver.ts"
 
@@ -143,8 +147,8 @@ describe("S3rver", () => {
 	})
 
 	describe("event 'event'", () => {
-		let s3rver: any
-		let s3Client: any
+		let s3rver: S3rver
+		let s3Client: TestS3Client
 
 		beforeEach(async () => {
 			;({ s3rver, s3Client } = await createServerAndClient({
@@ -153,12 +157,12 @@ describe("S3rver", () => {
 		})
 
 		it("triggers an event with a valid message structure", async function () {
-			const eventPromise = once(s3rver, "event")
+			const eventPromise = nextS3Event(s3rver)
 			const body = "Hello!"
 			await s3Client
 				.putObject({ Bucket: "bucket-a", Key: "testPutKey", Body: body })
 				.promise()
-			const [event] = await eventPromise
+			const event = await eventPromise
 			const iso8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 			expect(event.Records[0].eventTime).to.match(iso8601)
 			expect(
@@ -169,7 +173,7 @@ describe("S3rver", () => {
 		})
 
 		it("triggers a Post event", async function () {
-			const eventPromise = once(s3rver, "event")
+			const eventPromise = nextS3Event(s3rver)
 			const body = "Hello!"
 
 			const form = new FormData()
@@ -181,7 +185,7 @@ describe("S3rver", () => {
 				headers: form.getHeaders(),
 			})
 
-			const [event] = await eventPromise
+			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectCreated:Post")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-a")
 			expect(event.Records[0].s3.object).to.contain({
@@ -192,12 +196,12 @@ describe("S3rver", () => {
 		})
 
 		it("triggers a Put event", async function () {
-			const eventPromise = once(s3rver, "event")
+			const eventPromise = nextS3Event(s3rver)
 			const body = "Hello!"
 			await s3Client
 				.putObject({ Bucket: "bucket-a", Key: "testPutKey", Body: body })
 				.promise()
-			const [event] = await eventPromise
+			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectCreated:Put")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-a")
 			expect(event.Records[0].s3.object).to.contain({
@@ -212,7 +216,7 @@ describe("S3rver", () => {
 			await s3Client
 				.putObject({ Bucket: "bucket-a", Key: "testPut", Body: body })
 				.promise()
-			const eventPromise = once(s3rver, "event")
+			const eventPromise = nextS3Event(s3rver)
 			await s3Client
 				.copyObject({
 					Bucket: "bucket-b",
@@ -220,7 +224,7 @@ describe("S3rver", () => {
 					CopySource: "/bucket-a/testPut",
 				})
 				.promise()
-			const [event] = await eventPromise
+			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectCreated:Copy")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-b")
 			expect(event.Records[0].s3.object).to.contain({
@@ -238,11 +242,11 @@ describe("S3rver", () => {
 					Body: body,
 				})
 				.promise()
-			const eventPromise = once(s3rver, "event")
+			const eventPromise = nextS3Event(s3rver)
 			await s3Client
 				.deleteObject({ Bucket: "bucket-a", Key: "testDelete" })
 				.promise()
-			const [event] = await eventPromise
+			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectRemoved:Delete")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-a")
 			expect(event.Records[0].s3.object).to.contain({
@@ -263,7 +267,10 @@ describe("S3rver", () => {
 		await once(httpServer, "listening")
 
 		try {
-			const { port } = httpServer.address() as import("node:net").AddressInfo
+			const boundAddress = httpServer.address()
+			if (boundAddress === null || typeof boundAddress === "string")
+				throw new Error("Expected a TCP server address")
+			const { port } = boundAddress
 			const s3Client = new AWS.S3({
 				accessKeyId: "S3RVER",
 				secretAccessKey: "S3RVER",

@@ -1,11 +1,17 @@
+import {
+	required,
+	errorCode,
+	errorStatus,
+	type TestS3Client,
+	createServerAndClient,
+	generateTestObjects,
+} from "../helpers.ts"
 import find from "lodash/find.js"
 import fs from "node:fs"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
 
-import { createServerAndClient, generateTestObjects } from "../helpers.ts"
-
 describe("Operations on Buckets", () => {
-	let s3Client: any
+	let s3Client: TestS3Client
 	const buckets = [
 		// plain, unconfigured bucket
 		{
@@ -61,27 +67,27 @@ describe("Operations on Buckets", () => {
 		})
 
 		it("fails to delete a bucket because it is not empty", async function () {
-			let error: any
+			let error: unknown
 			await generateTestObjects(s3Client, "bucket-a", 20)
 			try {
 				await s3Client.deleteBucket({ Bucket: "bucket-a" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
 			}
 			expect(error).to.exist
-			expect(error.code).to.equal("BucketNotEmpty")
-			expect(error.statusCode).to.equal(409)
+			expect(errorCode(error)).to.equal("BucketNotEmpty")
+			expect(errorStatus(error)).to.equal(409)
 		})
 
 		it("fails to fetch a deleted bucket", async function () {
-			let error: any
+			let error: unknown
 			await s3Client.deleteBucket({ Bucket: "bucket-a" }).promise()
 			try {
 				await s3Client.listObjects({ Bucket: "bucket-a" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
-				expect(err.code).to.equal("NoSuchBucket")
-				expect(err.statusCode).to.equal(404)
+				expect(errorCode(err)).to.equal("NoSuchBucket")
+				expect(errorStatus(err)).to.equal(404)
 			}
 			expect(error).to.exist
 		})
@@ -89,29 +95,29 @@ describe("Operations on Buckets", () => {
 
 	describe("DELETE Bucket cors", () => {
 		it("deletes a CORS configuration in a configured bucket", async function () {
-			let error: any
+			let error: unknown
 			try {
 				await s3Client.deleteBucketCors({ Bucket: "cors-test0" }).promise()
 				await s3Client.getBucketCors({ Bucket: "cors-test0" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
 			}
 			expect(error).to.exist
-			expect(error.code).to.equal("NoSuchCORSConfiguration")
+			expect(errorCode(error)).to.equal("NoSuchCORSConfiguration")
 		})
 	})
 
 	describe("DELETE Bucket website", () => {
 		it("deletes a website configuration in a configured bucket", async function () {
 			await s3Client.deleteBucketWebsite({ Bucket: "website-test0" }).promise()
-			let error: any
+			let error: unknown
 			try {
 				await s3Client.getBucketWebsite({ Bucket: "website-test0" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
 			}
 			expect(error).to.exist
-			expect(error.code).to.equal("NoSuchWebsiteConfiguration")
+			expect(errorCode(error)).to.equal("NoSuchWebsiteConfiguration")
 		})
 	})
 
@@ -180,7 +186,7 @@ describe("Operations on Buckets", () => {
 				})
 				.promise()
 			expect(data.Contents).to.have.lengthOf(1)
-			expect(data.Contents[0]).to.have.property("Key", "akey3")
+			expect(required(data.Contents)[0]).to.have.property("Key", "akey3")
 		})
 
 		it("lists 100 objects without returning the next marker", async function () {
@@ -313,7 +319,10 @@ describe("Operations on Buckets", () => {
 				.promise()
 			expect(data.Contents).to.have.lengthOf(0)
 			expect(data.CommonPrefixes).to.have.lengthOf(1)
-			expect(data.CommonPrefixes[0]).to.have.property("Prefix", "prefix/")
+			expect(required(data.CommonPrefixes)[0]).to.have.property(
+				"Prefix",
+				"prefix/",
+			)
 		})
 
 		it("lists objects in a bucket filtered prefix starting after a key", async function () {
@@ -341,7 +350,7 @@ describe("Operations on Buckets", () => {
 				})
 				.promise()
 			expect(data.Contents).to.have.lengthOf(1)
-			expect(data.Contents[0]).to.have.property("Key", "akey3")
+			expect(required(data.Contents)[0]).to.have.property("Key", "akey3")
 		})
 
 		it("lists objects in a bucket filtered by a delimiter", async function () {
@@ -366,7 +375,10 @@ describe("Operations on Buckets", () => {
 				.promise()
 			expect(data.Contents).to.have.lengthOf(6)
 			expect(data.CommonPrefixes).to.have.lengthOf(1)
-			expect(data.CommonPrefixes[0]).to.have.property("Prefix", "key/")
+			expect(required(data.CommonPrefixes)[0]).to.have.property(
+				"Prefix",
+				"key/",
+			)
 		})
 
 		it("lists folders in a bucket filtered by a prefix and a delimiter", async function () {
@@ -399,15 +411,15 @@ describe("Operations on Buckets", () => {
 				})
 				.promise()
 			expect(data.CommonPrefixes).to.have.lengthOf(3)
-			expect(data.CommonPrefixes[0]).to.have.property(
+			expect(required(data.CommonPrefixes)[0]).to.have.property(
 				"Prefix",
 				"folder1/folder2/",
 			)
-			expect(data.CommonPrefixes[1]).to.have.property(
+			expect(required(data.CommonPrefixes)[1]).to.have.property(
 				"Prefix",
 				"folder1/folder3/",
 			)
-			expect(data.CommonPrefixes[2]).to.have.property(
+			expect(required(data.CommonPrefixes)[2]).to.have.property(
 				"Prefix",
 				"folder1/folder4/",
 			)
@@ -466,7 +478,7 @@ describe("Operations on Buckets", () => {
 			const nextData = await s3Client
 				.listObjectsV2({
 					Bucket: "bucket-a",
-					ContinuationToken: data.NextContinuationToken,
+					ContinuationToken: required(data.NextContinuationToken),
 				})
 				.promise()
 			expect(nextData.Contents).to.have.lengthOf(100)
@@ -492,49 +504,49 @@ describe("Operations on Buckets", () => {
 		})
 
 		it("fails to create a bucket because of invalid name", async function () {
-			let error: any
+			let error: unknown
 			try {
 				await s3Client.createBucket({ Bucket: "-$%!nvalid" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
-				expect(err.statusCode).to.equal(400)
-				expect(err.code).to.equal("InvalidBucketName")
+				expect(errorStatus(err)).to.equal(400)
+				expect(errorCode(err)).to.equal("InvalidBucketName")
 			}
 			expect(error).to.exist
 		})
 
 		it("fails to create a bucket because of invalid domain-style name", async function () {
-			let error: any
+			let error: unknown
 			try {
 				await s3Client.createBucket({ Bucket: ".example.com" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
-				expect(err.statusCode).to.equal(400)
-				expect(err.code).to.equal("InvalidBucketName")
+				expect(errorStatus(err)).to.equal(400)
+				expect(errorCode(err)).to.equal("InvalidBucketName")
 			}
 			expect(error).to.exist
 		})
 
 		it("fails to create a bucket because name is too long", async function () {
-			let error: any
+			let error: unknown
 			try {
 				await s3Client.createBucket({ Bucket: "abcd".repeat(16) }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
-				expect(err.statusCode).to.equal(400)
-				expect(err.code).to.equal("InvalidBucketName")
+				expect(errorStatus(err)).to.equal(400)
+				expect(errorCode(err)).to.equal("InvalidBucketName")
 			}
 			expect(error).to.exist
 		})
 
 		it("fails to create a bucket because name is too short", async function () {
-			let error: any
+			let error: unknown
 			try {
 				await s3Client.createBucket({ Bucket: "ab" }).promise()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				error = err
-				expect(err.statusCode).to.equal(400)
-				expect(err.code).to.equal("InvalidBucketName")
+				expect(errorStatus(err)).to.equal(400)
+				expect(errorCode(err)).to.equal("InvalidBucketName")
 			}
 			expect(error).to.exist
 		})

@@ -1,25 +1,26 @@
+import { deleteKeys, uploadParts } from "../protocol-xml.ts"
+import type { Readable } from "node:stream"
 import { Temporal } from "@js-temporal/polyfill"
 import { iso8601FromInstant, isoNow, parseDate } from "../temporal-tools.ts"
 import Busboy from "busboy"
 import crypto from "node:crypto"
 import { once } from "node:events"
 import { URL } from "node:url"
-import { asArray } from "../utils.ts"
 
 import { DUMMY_ACCOUNT } from "../models/account.ts"
 import { TaggingConfiguration } from "../models/config.ts"
 import S3Error from "../models/error.ts"
-import S3Event from "../models/event.ts"
+import { createS3Event, type S3EventData } from "../models/event.ts"
 import S3Object from "../models/object.ts"
 import { aws4SignatureBodyParser } from "../signature/v4.ts"
 import { type S3Context } from "../types.ts"
 import { capitalizeHeader, utf8BodyParser, xmlBodyParser } from "../utils.ts"
 
-function triggerS3Event(ctx: S3Context, eventData: any) {
+function triggerS3Event(ctx: S3Context, eventData: S3EventData) {
 	ctx.app.emit(
 		"event",
-		new S3Event(eventData, {
-			reqHeaders: ctx.headers,
+		createS3Event(eventData, {
+			reqHeaders: ctx.s3Headers,
 			sourceIp: ctx.ip,
 		}),
 	)
@@ -50,17 +51,10 @@ export const METHODS = [
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html}
  */
 export async function deleteMultipleObjects(ctx: S3Context) {
-	await xmlBodyParser(ctx)
-	if (!ctx.request.body.Delete || !ctx.request.body.Delete.Object) {
-		throw new S3Error(
-			"MalformedXML",
-			"The XML you provided was not well-formed or did not validate against " +
-				"our published schema.",
-		)
-	}
-	const keys = asArray(ctx.request.body.Delete.Object).map((o: any) => o.Key)
+	const body = await xmlBodyParser(ctx)
+	const keys = deleteKeys(body)
 	await Promise.all(
-		keys.map(async (key: any) => {
+		keys.map(async (key: string) => {
 			const objectExists = await ctx.store.existsObject(ctx.params.bucket, key)
 			if (!objectExists) return
 
@@ -75,7 +69,7 @@ export async function deleteMultipleObjects(ctx: S3Context) {
 	ctx.body = {
 		DeleteResult: {
 			"@": { xmlns: "http://s3.amazonaws.com/doc/2006-03-01/" },
-			Deleted: keys.map((k: any) => ({ Key: k })),
+			Deleted: keys.map((key: string) => ({ Key: key })),
 		},
 	}
 }
@@ -98,7 +92,7 @@ export async function deleteObject(ctx: S3Context) {
 			})
 		}
 		ctx.status = 204
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error deleting object "%s" from bucket "%s"',
 			ctx.params.key,
@@ -144,12 +138,12 @@ export async function getObject(ctx: S3Context) {
 		)
 	}
 
-	const noneMatch = ctx.headers["if-none-match"]
+	const noneMatch = ctx.s3Headers["if-none-match"]
 	if (noneMatch && (noneMatch === object.metadata.etag || noneMatch === "*")) {
 		ctx.status = 304
 		return
 	}
-	const modifiedSince = ctx.headers["if-modified-since"]
+	const modifiedSince = ctx.s3Headers["if-modified-since"]
 	const modifiedSinceInstant = parseDate(modifiedSince || "")
 	if (
 		modifiedSinceInstant &&
@@ -264,7 +258,7 @@ export async function postObject(ctx: S3Context) {
 		let successStatus = 204
 		let fileCount = 0
 
-		const busboy = Busboy({ headers: ctx.headers })
+		const busboy = Busboy({ headers: ctx.s3Headers })
 		const finishedPromise = once(busboy, "finish")
 		const object = await Promise.race([
 			finishedPromise.then(() => null),
@@ -272,12 +266,12 @@ export async function postObject(ctx: S3Context) {
 				let key: string | undefined
 				const metadata: Record<string, string> = {}
 
-				const errorHandler = (err: any) => {
+				const errorHandler = (err: unknown) => {
 					busboy.off("field", fieldHandler)
 					busboy.off("file", fileHandler)
 					reject(err)
 				}
-				const fieldHandler = (fieldname: any, value: any) => {
+				const fieldHandler = (fieldname: string, value: string) => {
 					if (fieldname === "file") {
 						// busboy will identify parts as fields if they both lack a filename
 						// and have a content-type other than application/octet-stream
@@ -319,11 +313,13 @@ export async function postObject(ctx: S3Context) {
 							break
 					}
 				}
-				const fileHandler = (fieldname: any, file: any) => {
+				const fileHandler = (fieldname: string, file: Readable) => {
 					if (fieldname !== "file" || fileCount++) {
 						return file.resume()
 					}
 					resolve(new S3Object(ctx.params.bucket, key!, file, metadata))
+
+					return undefined
 				}
 
 				busboy.once("error", errorHandler)
@@ -427,7 +423,7 @@ export async function postObject(ctx: S3Context) {
 			ctx.body = ""
 			ctx.type = ""
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error uploading object to bucket "%s"',
 			ctx.params.bucket,
@@ -443,12 +439,12 @@ export async function postObject(ctx: S3Context) {
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectPUT.html}
  */
 export async function putObject(ctx: S3Context) {
-	aws4SignatureBodyParser(ctx)
+	const content = aws4SignatureBodyParser(ctx)
 	const object = new S3Object(
 		ctx.params.bucket,
 		ctx.params.key,
-		ctx.request.body,
-		ctx.headers,
+		content,
+		ctx.s3Headers,
 	)
 	try {
 		const { md5, size } = await ctx.store.putObject(object)
@@ -467,7 +463,7 @@ export async function putObject(ctx: S3Context) {
 		})
 		ctx.etag = md5
 		ctx.body = ""
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error uploading object "%s" to bucket "%s"',
 			object.key,
@@ -515,7 +511,7 @@ export async function putObjectCopy(ctx: S3Context) {
 			})
 		}
 		const replaceMetadata =
-			ctx.headers["x-amz-metadata-directive"] === "REPLACE"
+			ctx.s3Headers["x-amz-metadata-directive"] === "REPLACE"
 		if (srcBucket === destBucket && srcKey === destKey && !replaceMetadata) {
 			throw new S3Error(
 				"InvalidRequest",
@@ -530,7 +526,7 @@ export async function putObjectCopy(ctx: S3Context) {
 			srcKey,
 			destBucket,
 			destKey,
-			replaceMetadata ? ctx.headers : null,
+			replaceMetadata ? ctx.s3Headers : null,
 		)
 
 		ctx.logger.info(
@@ -551,7 +547,7 @@ export async function putObjectCopy(ctx: S3Context) {
 				ETag: metadata.etag,
 			},
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error copying object "%s" from bucket "%s" into bucket "%s" with key of "%s"',
 			srcKey,
@@ -583,11 +579,11 @@ export async function putObjectTagging(ctx: S3Context): Promise<void> {
 	}
 
 	try {
-		await utf8BodyParser(ctx)
-		const config = TaggingConfiguration.validate(ctx.request.body)
+		const body = await utf8BodyParser(ctx)
+		const config = TaggingConfiguration.validate(body)
 		await ctx.store.putSubresource(bucket, key, config)
 		ctx.body = ""
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error tagging object "%s" in bucket "%s"',
 			key,
@@ -604,28 +600,12 @@ export async function putObjectTagging(ctx: S3Context): Promise<void> {
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadComplete.html}
  */
 export async function completeMultipartUpload(ctx: S3Context) {
-	await xmlBodyParser(ctx)
-	if (
-		!ctx.request.body.CompleteMultipartUpload ||
-		!ctx.request.body.CompleteMultipartUpload.Part
-	) {
-		throw new S3Error(
-			"MalformedXML",
-			"The XML you provided was not well-formed or did not validate against " +
-				"our published schema.",
-		)
-	}
-	const parts = asArray(ctx.request.body.CompleteMultipartUpload.Part).map(
-		(part: any) => ({
-			number: Number(part.PartNumber),
-			// S3 removes all double quotes when comparing etags
-			etag: part.ETag.replace(/"/g, ""),
-		}),
-	)
+	const body = await xmlBodyParser(ctx)
+	const parts = uploadParts(body)
 	try {
 		const { md5, size } = await ctx.store.putObjectMultipart(
 			ctx.params.bucket,
-			ctx.query.uploadId,
+			ctx.s3Query.uploadId ?? "",
 			parts,
 		)
 		ctx.logger.info(
@@ -649,7 +629,7 @@ export async function completeMultipartUpload(ctx: S3Context) {
 				ETag: JSON.stringify(md5),
 			},
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error uploading object "%s" to bucket "%s"',
 			ctx.params.key,
@@ -674,7 +654,7 @@ export async function initiateMultipartUpload(ctx: S3Context) {
 		ctx.params.bucket,
 		ctx.params.key,
 		uploadId,
-		ctx.headers,
+		ctx.s3Headers,
 	)
 	ctx.body = {
 		InitiateMultipartUploadResult: {
@@ -695,27 +675,27 @@ export async function initiateMultipartUpload(ctx: S3Context) {
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html}
  */
 export async function uploadPart(ctx: S3Context) {
-	aws4SignatureBodyParser(ctx)
+	const content = aws4SignatureBodyParser(ctx)
 	try {
 		const { md5 } = await ctx.store.putPart(
 			ctx.params.bucket,
-			ctx.query.uploadId,
-			ctx.query.partNumber,
-			ctx.request.body,
+			ctx.s3Query.uploadId ?? "",
+			Number(ctx.s3Query.partNumber),
+			content,
 		)
 		ctx.logger.info(
 			'Stored part %s of %s in bucket "%s" successfully',
-			ctx.query.partNumber,
-			ctx.query.uploadId,
+			Number(ctx.s3Query.partNumber),
+			ctx.s3Query.uploadId ?? "",
 			ctx.params.bucket,
 		)
 		ctx.etag = md5
 		ctx.body = ""
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error uploading part %s of %s to bucket "%s"',
-			ctx.query.partNumber,
-			ctx.query.uploadId,
+			ctx.s3Query.partNumber,
+			ctx.s3Query.uploadId ?? "",
 			ctx.params.bucket,
 			err,
 		)
@@ -738,7 +718,7 @@ export async function uploadPartCopy(ctx: S3Context) {
 	}
 
 	const options: { start?: number; end?: number } = {}
-	if ("x-amz-copy-source-range" in ctx.headers) {
+	if ("x-amz-copy-source-range" in ctx.s3Headers) {
 		const match = /^bytes=(\d+)-(\d+)$/.exec(ctx.get("x-amz-copy-source-range"))
 		if (!match) {
 			throw new S3Error(
@@ -778,16 +758,21 @@ export async function uploadPartCopy(ctx: S3Context) {
 	}
 
 	try {
+		if (!object.content)
+			throw new S3Error(
+				"InvalidRange",
+				"The requested range is not satisfiable",
+			)
 		const { md5 } = await ctx.store.putPart(
 			ctx.params.bucket,
-			ctx.query.uploadId,
-			ctx.query.partNumber,
+			ctx.s3Query.uploadId ?? "",
+			Number(ctx.s3Query.partNumber),
 			object.content,
 		)
 		ctx.logger.info(
 			'Copied part %s of %s in bucket "%s" successfully',
-			ctx.query.partNumber,
-			ctx.query.uploadId,
+			ctx.s3Query.partNumber,
+			ctx.s3Query.uploadId ?? "",
 			ctx.params.bucket,
 		)
 		ctx.etag = md5
@@ -797,11 +782,11 @@ export async function uploadPartCopy(ctx: S3Context) {
 				ETag: JSON.stringify(md5),
 			},
 		}
-	} catch (err: any) {
+	} catch (err: unknown) {
 		ctx.logger.error(
 			'Error copying part %s of %s to bucket "%s"',
-			ctx.query.partNumber,
-			ctx.query.uploadId,
+			ctx.s3Query.partNumber,
+			ctx.s3Query.uploadId ?? "",
 			ctx.params.bucket,
 			err,
 		)

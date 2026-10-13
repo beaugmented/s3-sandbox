@@ -1,3 +1,4 @@
+import { jsonObject } from "../../src/json.ts"
 import { readFileSync } from "node:fs"
 import { describe, expect, it, vi } from "vite-plus/test"
 import { runCli } from "../../src/cli.ts"
@@ -14,9 +15,9 @@ describe("Public CLI contract", () => {
 	it("reports the first-release version", async () => {
 		const io = { log: vi.fn(), error: vi.fn() }
 		await runCli(argv("--version"), { io })
-		const pkg = JSON.parse(
+		const pkg = jsonObject(
 			readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-		) as { version: string }
+		)
 		expect(io.log).toHaveBeenCalledWith(pkg.version)
 	})
 	it("rejects missing directories, invalid ports and unknown options", async () => {

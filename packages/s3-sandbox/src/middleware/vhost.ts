@@ -6,7 +6,13 @@ import { type S3Context } from "../types.ts"
 /**
  * Middleware that rewrites URLs for buckets specified via subdomain or host header
  */
-export default ({ serviceEndpoint, vhostBuckets }: any) =>
+export default ({
+	serviceEndpoint,
+	vhostBuckets,
+}: {
+	serviceEndpoint: string
+	vhostBuckets: boolean
+}) =>
 	function vhost(ctx: S3Context, next: () => Promise<unknown>) {
 		const pattern = RegExp(
 			`^(?:(.+)\\.)?s3(-website)?([-.].+)?\\.${escapeRegExp(serviceEndpoint)}$`,
@@ -23,8 +29,8 @@ export default ({ serviceEndpoint, vhostBuckets }: any) =>
 			// if the request contains any x-amz-* headers or query string parameters,
 			// consider this an SDK/CLI request
 			for (const key of [
-				...Object.keys(ctx.headers),
-				...Object.keys(ctx.query),
+				...Object.keys(ctx.s3Headers),
+				...Object.keys(ctx.s3Query),
 			]) {
 				if (key.toLowerCase().startsWith("x-amz-")) {
 					ctx.state.service = "s3"

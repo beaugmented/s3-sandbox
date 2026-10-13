@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { jsonObject } from "./json.ts"
 import {
 	cli,
 	formatWarnings,
@@ -132,7 +133,7 @@ function bucketArguments(argv: string[], readFile: typeof readFileSync) {
 			throw new Error("--configure-bucket requires a bucket name")
 		const configs: Buffer[] = []
 		while (argv[i + 1] && !argv[i + 1]!.startsWith("-"))
-			configs.push(readFile(argv[++i]!) as Buffer)
+			configs.push(readFile(argv[++i]!))
 		buckets.push({ name, configs })
 	}
 	return { args, buckets }
@@ -154,17 +155,14 @@ export async function runCli(
 			help(definition.definition) +
 				"\n  --configure-bucket <name> [configs...]  Preconfigure a bucket (repeatable)",
 		)
-		return
+		return undefined
 	}
 	if (opts.version) {
 		io.log(
-			(
-				JSON.parse(
-					readFile(new URL("../package.json", import.meta.url), "utf8"),
-				) as { version: string }
-			).version,
+			jsonObject(readFile(new URL("../package.json", import.meta.url), "utf8"))
+				.version,
 		)
-		return
+		return undefined
 	}
 	if (!opts.directory)
 		throw new Error("Missing required option: --directory <path>")
@@ -185,7 +183,8 @@ export async function runCli(
 	}
 	;(environment.mkdir ?? mkdirSync)(opts.directory, { recursive: true })
 	const server = (
-		environment.createServer ?? ((options) => new S3Sandbox(options))
+		environment.createServer ??
+		((serverOptions) => new S3Sandbox(serverOptions))
 	)(configs)
 	const { address, port } = await server.run()
 	io.log("S3 sandbox listening on %s:%d", address, port)

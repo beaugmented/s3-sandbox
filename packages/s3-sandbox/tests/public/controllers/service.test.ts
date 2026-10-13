@@ -1,7 +1,5 @@
-import zip from "lodash/zip.js"
+import { required, createServerAndClient } from "../helpers.ts"
 import { describe, expect, it } from "vite-plus/test"
-
-import { createServerAndClient } from "../helpers.ts"
 
 describe("Operations on the Service", () => {
 	describe("GET Service", () => {
@@ -20,7 +18,8 @@ describe("Operations on the Service", () => {
 			})
 			const data = await s3Client.listBuckets().promise()
 			expect(data.Buckets).to.have.lengthOf(6)
-			for (const [bucket, config] of zip<any>(data.Buckets, buckets)) {
+			for (const [index, bucket] of required(data.Buckets).entries()) {
+				const config = required(buckets[index])
 				expect(bucket.Name).to.equal(config.name)
 				expect(Number.isFinite(Number(bucket.CreationDate))).to.be.true
 			}

@@ -44,7 +44,7 @@ function latest(action: string) {
 					]
 				: []
 		})
-		.sort((a, b) => {
+		.toSorted((a, b) => {
 			for (let i = 0; i < 3; i++) {
 				const difference = b.numbers[i]! - a.numbers[i]!
 				if (difference) return difference
@@ -58,8 +58,8 @@ function latest(action: string) {
 	cache.set(action, result)
 	return result
 }
-for (const file of files(path.join(root, ".github")).filter((file) =>
-	/\.ya?ml$/.test(file),
+for (const file of files(path.join(root, ".github")).filter((candidate) =>
+	/\.ya?ml$/.test(candidate),
 )) {
 	const original = readFileSync(file, "utf8")
 	const updated = original.replace(

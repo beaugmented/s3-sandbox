@@ -1,14 +1,15 @@
-import mapKeys from "lodash/mapKeys.js"
 import omit from "lodash/omit.js"
 import * as he from "he"
 import { j2xParser } from "../xml.ts"
+import { asError } from "../error-tools.ts"
 
 class S3Error extends Error {
-	static fromError(err: any) {
+	static fromError(value: unknown) {
+		const err = asError(value)
 		return Object.assign(
 			new S3Error(
 				"InternalError",
-				err.expose
+				"expose" in err && err.expose === true
 					? err.message
 					: "We encountered an internal error. Please try again.",
 			),
@@ -16,15 +17,24 @@ class S3Error extends Error {
 		)
 	}
 
-	constructor(code: string, message?: string, detail = {}) {
+	constructor(
+		code: string,
+		message?: string,
+		detail: Record<string, unknown> = {},
+	) {
 		super(message)
 		this.code = code
 		this.detail = detail
 		this.errors = []
 		this.headers = {
 			"x-amz-error-code": code,
-			"x-amz-error-message": message,
-			...mapKeys(detail, (value, key) => `x-amz-error-detail-${key}`),
+			"x-amz-error-message": message ?? "",
+			...Object.fromEntries(
+				Object.entries(detail).map(([key, value]) => [
+					`x-amz-error-detail-${key}`,
+					String(value),
+				]),
+			),
 		}
 		this.status = s3Statuses[code] || 500
 		this.expose = this.status < 500
@@ -32,8 +42,7 @@ class S3Error extends Error {
 
 	toXML() {
 		const parser = new j2xParser({
-			tagValueProcessor: (a) =>
-				he.encode(a.toString(), { useNamedReferences: true }),
+			tagValueProcessor: (a) => he.encode(a, { useNamedReferences: true }),
 		})
 		return [
 			'<?xml version="1.0" encoding="UTF-8"?>',
@@ -48,8 +57,6 @@ class S3Error extends Error {
 	}
 
 	toHTML() {
-		const encode = (a: any) =>
-			he.encode(a.toString(), { useNamedReferences: true })
 		return [
 			// Real S3 doesn't respond with DOCTYPE
 			"<html>",
@@ -58,9 +65,9 @@ class S3Error extends Error {
 			`<h1>${encode(this.description)}</h1>`,
 			"<ul>",
 			`<li>Code: ${encode(this.code)}</li>`,
-			`<li>Message: ${this.message}</li>`,
+			`<li>Message: ${encode(this.message)}</li>`,
 			Object.entries(this.detail)
-				.map(([key, value]) => `<li>${key}: ${encode(value)}</li>`)
+				.map(([key, value]) => `<li>${encode(key)}: ${encode(value)}</li>`)
 				.join("\n"),
 			"</ul>",
 			(this.errors || [])
@@ -71,7 +78,9 @@ class S3Error extends Error {
 						`<li>Code: ${encode(error.code)}</li>`,
 						`<li>Message: ${encode(error.message)}</li>`,
 						Object.entries(error.detail)
-							.map(([key, value]) => `<li>${key}: ${encode(value)}</li>`)
+							.map(
+								([key, value]) => `<li>${encode(key)}: ${encode(value)}</li>`,
+							)
 							.join("\n"),
 						"</ul>",
 					].join("\n"),
@@ -85,9 +94,9 @@ class S3Error extends Error {
 	}
 
 	declare code: string
-	declare detail: Record<string, any>
+	declare detail: Record<string, unknown>
 	declare errors: S3Error[]
-	declare headers: Record<string, any>
+	declare headers: Record<string, string>
 	declare status: number
 	declare expose: boolean
 	declare description: string | undefined
@@ -184,4 +193,8 @@ const s3Statuses: Record<string, number> = {
 	NoSuchCORSConfiguration: 404,
 	NoSuchWebsiteConfiguration: 404,
 	UnsupportedQuery: 404,
+}
+
+function encode(value: unknown): string {
+	return he.encode(String(value), { useNamedReferences: true })
 }

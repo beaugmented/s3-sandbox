@@ -1,3 +1,4 @@
+import { protocolHeaders, protocolQuery } from "./protocol-request.ts"
 import defaults from "lodash/defaults.js"
 import isPlainObject from "lodash/isPlainObject.js"
 import * as he from "he"
@@ -14,8 +15,8 @@ import { getConfigModel } from "./models/config.ts"
 import S3Error from "./models/error.ts"
 import router from "./routes.ts"
 import FilesystemStore from "./stores/filesystem.ts"
-import type { S3Context } from "./types.ts"
-import xmlParser from "./xml.ts"
+import type { S3Context, S3State } from "./types.ts"
+import * as xmlParser from "./xml.ts"
 
 export type BucketConfiguration = {
 	name: string
@@ -51,7 +52,7 @@ export type RunCallback = (error: Error | null, address?: AddressInfo) => void
 export type CloseCallback = (error: Error | null) => void
 
 /** A local S3-compatible Koa application with a filesystem store. */
-export default class S3Sandbox extends Koa<any, S3Context> {
+export default class S3Sandbox extends Koa<S3State, S3Context> {
 	static defaultOptions: Defaults = {
 		address: "localhost",
 		port: 4568,
@@ -74,6 +75,7 @@ export default class S3Sandbox extends Koa<any, S3Context> {
 
 	constructor(options: S3SandboxOptions = {}) {
 		super()
+		// oxlint-disable-next-line unicorn/prefer-add-event-listener -- Koa exposes an error hook, not a DOM event.
 		this.context.onerror = onerror
 		const {
 			silent,
@@ -96,7 +98,7 @@ export default class S3Sandbox extends Koa<any, S3Context> {
 		const builder = new xmlParser.j2xParser({
 			ignoreAttributes: false,
 			attrNodeName: "@",
-			tagValueProcessor: (value) => he.escape(String(value)),
+			tagValueProcessor: (value) => he.escape(value),
 		})
 		this.use(async (ctx: S3Context, next: () => Promise<unknown>) => {
 			await next()
@@ -108,6 +110,8 @@ export default class S3Sandbox extends Koa<any, S3Context> {
 		})
 		this.use((ctx: S3Context, next: () => Promise<unknown>) => {
 			ctx.mountPath = ctx.mountPath || ctx.req.baseUrl || ""
+			ctx.s3Headers = protocolHeaders(ctx.headers)
+			ctx.s3Query = protocolQuery(ctx.query)
 			return next()
 		})
 		this.use(vhostMiddleware({ serviceEndpoint, vhostBuckets }))
@@ -135,9 +139,11 @@ export default class S3Sandbox extends Koa<any, S3Context> {
 						)
 					const config = Model.validate(xml)
 					if (
+						// oxlint-disable-next-line eslint/no-await-in-loop -- Apply duplicate bucket configurations in caller-provided order.
 						await this.store.getSubresource(bucket.name, undefined, config.type)
 					)
 						replaced.push(config.type)
+					// oxlint-disable-next-line eslint/no-await-in-loop -- Each configuration replaces the previous configuration of that type.
 					await this.store.putSubresource(bucket.name, undefined, config)
 				}
 				if (replaced.length)
@@ -169,10 +175,15 @@ export default class S3Sandbox extends Koa<any, S3Context> {
 			try {
 				await this.configureBuckets()
 				const { address, port, key, cert, pfx } = this.serverOptions
+				const handleRequest = this.callback()
+				const listener: http.RequestListener = (req, res) => {
+					// Koa catches middleware rejections and owns response completion.
+					void handleRequest(req, res)
+				}
 				const server =
 					(key && cert) || pfx
-						? https.createServer(this.serverOptions, this.callback())
-						: http.createServer(this.serverOptions, this.callback())
+						? https.createServer(this.serverOptions, listener)
+						: http.createServer(this.serverOptions, listener)
 				server.once("close", () => {
 					if (this.resetOnClose) this.reset()
 				})
@@ -185,7 +196,10 @@ export default class S3Sandbox extends Koa<any, S3Context> {
 					})
 				})
 				this.httpServer = server
-				return server.address() as AddressInfo
+				const boundAddress = server.address()
+				if (boundAddress === null || typeof boundAddress === "string")
+					throw new Error("Expected a TCP server address")
+				return boundAddress
 			} finally {
 				this.starting = false
 			}

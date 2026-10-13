@@ -30,8 +30,8 @@ export default () =>
 			return next()
 		}
 
-		const overrides = Object.fromEntries(
-			Object.entries(ctx.query)
+		const overrides = Object.fromEntries<string>(
+			Object.entries(ctx.s3Query)
 				.filter(([key, value]) => {
 					if (!key.startsWith("response-")) return false
 					if (!RESPONSE_HEADERS[key]) {
@@ -49,8 +49,8 @@ export default () =>
 					return true
 				})
 				.map(([key, value]) => [
-					capitalizeHeader(key.slice("response-".length)),
-					value,
+					capitalizeHeader(key.slice("response-".length)) ?? key,
+					value ?? "",
 				]),
 		)
 
@@ -70,6 +70,8 @@ export default () =>
 			default:
 				return next()
 		}
+
+		return undefined
 	}
 
 export { RESPONSE_HEADERS }

@@ -1,3 +1,4 @@
+import type { AuthRequest, V2Request } from "../signature/types.ts"
 import { Temporal } from "@js-temporal/polyfill"
 import mapKeys from "lodash/mapKeys.js"
 import pickBy from "lodash/pickBy.js"
@@ -59,16 +60,16 @@ export default () =>
 		}
 
 		const amzQueryHeaders = pickBy(
-			mapKeys(ctx.query, (value: any, key) => key.toLowerCase()),
-			(value: any, key) => key.startsWith("x-amz-"),
+			mapKeys(ctx.s3Query, (_value, key) => key.toLowerCase()),
+			(_value, key) => key.startsWith("x-amz-"),
 		)
 		// x-amz-* values specified in query params take precedence over those in the headers
-		Object.assign(ctx.headers, amzQueryHeaders)
+		Object.assign(ctx.s3Headers, amzQueryHeaders)
 
 		const mechanisms = {
-			header: "authorization" in ctx.headers,
-			queryV2: "Signature" in ctx.query,
-			queryV4: "X-Amz-Algorithm" in ctx.query,
+			header: "authorization" in ctx.s3Headers,
+			queryV2: "Signature" in ctx.s3Query,
+			queryV4: "X-Amz-Algorithm" in ctx.s3Query,
 		}
 
 		const mechanismCount = Object.values(mechanisms).filter(Boolean).length
@@ -108,12 +109,12 @@ export default () =>
 			.join("/")
 
 		// begin parsing for each part of the signature algorithm and the rest of the canonical request
-		const request: Record<string, any> = mechanisms.header
-			? parseHeader(ctx.headers)
+		const request: AuthRequest = mechanisms.header
+			? parseHeader(ctx.s3Headers)
 			: mechanisms.queryV2
-				? v2.parseQuery(ctx.query)
+				? v2.parseQuery(ctx.s3Query)
 				: mechanisms.queryV4
-					? v4.parseQuery(ctx.query)
+					? v4.parseQuery(ctx.s3Query)
 					: (() => {
 							throw new S3Error(
 								"InvalidArgument",
@@ -121,7 +122,7 @@ export default () =>
 							)
 						})()
 
-		const canonicalizedQueryString = Object.entries(ctx.query)
+		const canonicalizedQueryString = Object.entries(ctx.s3Query)
 			.filter(([param]) => {
 				if (
 					mechanisms.queryV2 &&
@@ -144,15 +145,15 @@ export default () =>
 						? [param, value].slice(0, value ? 2 : 1).join("=") // v2 signing doesn't encode values in the signature calculation
 						: [param, value].map(encodeURIComponent).join("="), // v4 signing requires the = be present even when there's no value
 			)
-			.sort()
+			.toSorted()
 			.join("&")
 
-		const canonicalizedAmzHeaders = Object.keys(ctx.headers)
+		const canonicalizedAmzHeaders = Object.keys(ctx.s3Headers)
 			.filter((headerName) => headerName.startsWith("x-amz-"))
-			.sort()
+			.toSorted()
 			.map(
 				(headerName) =>
-					`${headerName}:${ctx.get(headerName).replace(/ +/g, " ")}`,
+					`${headerName}:${(ctx.s3Headers[headerName] ?? "").replace(/ +/g, " ")}`,
 			)
 
 		const canonicalRequest = {
@@ -162,9 +163,9 @@ export default () =>
 					: ctx.method,
 			contentMD5: ctx.get("Content-MD5"),
 			contentType: ctx.get("Content-Type"),
-			headers: ctx.headers,
-			timestamp:
-				request.signature.version === 2 ? request.expires : request.time,
+			headers: ctx.s3Headers,
+			// TODO: verify v2 header timestamp canonicalization; see docs/implementation-review.md.
+			timestamp: isV2Request(request) ? request.expires : request.time,
 			uri:
 				request.signature.version === 4
 					? (ctx.mountPath || "") + ctx.originalUrl.split("?")[0]
@@ -182,16 +183,23 @@ export default () =>
 			)
 		}
 
-		if (request.signature.version === 2) {
-			request.stringToSign = v2.getStringToSign(canonicalRequest)
-			request.signingKey = account.accessKeys.get(request.accessKeyId)
-		} else if (request.signature.version === 4) {
-			request.stringToSign = v4.getStringToSign(canonicalRequest, {
-				credential: request.credential,
-				signedHeaders: request.signedHeaders,
-			})
-			request.signingKey = v4.getSigningKey(
-				account.accessKeys.get(request.accessKeyId)!,
+		const secretKey = account.accessKeys.get(request.accessKeyId)
+		if (secretKey === undefined) throw new S3Error("InvalidAccessKeyId")
+		let stringToSign: string
+		let signingKey: string | Buffer
+		if (isV2Request(request)) {
+			stringToSign = v2.getStringToSign(canonicalRequest)
+			signingKey = secretKey
+		} else {
+			stringToSign = v4.getStringToSign(
+				{ ...canonicalRequest, timestamp: request.time },
+				{
+					credential: request.credential,
+					signedHeaders: request.signedHeaders,
+				},
+			)
+			signingKey = v4.getSigningKey(
+				secretKey,
 				request.credential.date,
 				request.credential.region,
 				request.credential.service,
@@ -199,9 +207,9 @@ export default () =>
 		}
 		const calculatedSignature = createHmac(
 			request.signature.algorithm,
-			request.signingKey,
+			signingKey,
 		)
-			.update(request.stringToSign, "utf8")
+			.update(stringToSign, "utf8")
 			.digest(request.signature.encoding)
 
 		if (request.signatureProvided === calculatedSignature) {
@@ -218,8 +226,8 @@ export default () =>
 						"you provided. Check your key and signing method.",
 					{
 						AWSAccessKeyId: request.accessKeyId,
-						StringToSign: request.stringToSign,
-						StringToSignBytes: Buffer.from(request.stringToSign)
+						StringToSign: stringToSign,
+						StringToSignBytes: Buffer.from(stringToSign)
 							.toString("hex")
 							.match(/../g)!
 							.join(" "),
@@ -231,27 +239,27 @@ export default () =>
 		return next()
 	}
 
-function parseHeader(headers: any): Record<string, any> {
-	const request: Record<string, any> = {
-		signature: undefined,
-		accessKeyId: undefined,
-		time: headers["x-amz-date"] || headers.date,
-	}
+function isV2Request(request: AuthRequest): request is V2Request {
+	return request.signature.version === 2
+}
 
-	const [algorithm] = headers.authorization.split(" ")
+function parseHeader(headers: Record<string, string>): AuthRequest {
+	const time = headers["x-amz-date"] || headers.date || ""
+	const [algorithm = ""] = (headers.authorization ?? "").split(" ")
+	let request: AuthRequest
 	switch (algorithm.toUpperCase()) {
 		case "AWS":
-			request.signature = {
-				version: 2,
-				algorithm: "sha1",
-				encoding: "base64",
+			request = {
+				time,
+				signature: { version: 2, algorithm: "sha1", encoding: "base64" },
+				...v2.parseHeader(headers),
 			}
 			break
 		case "AWS4-HMAC-SHA256":
-			request.signature = {
-				version: 4,
-				algorithm: "sha256",
-				encoding: "hex",
+			request = {
+				time,
+				signature: { version: 4, algorithm: "sha256", encoding: "hex" },
+				...v4.parseHeader(headers),
 			}
 			break
 		default:
@@ -261,17 +269,8 @@ function parseHeader(headers: any): Record<string, any> {
 			})
 	}
 
-	switch (request.signature.version) {
-		case 2:
-			Object.assign(request, v2.parseHeader(headers))
-			break
-		case 4:
-			Object.assign(request, v4.parseHeader(headers))
-			break
-	}
-
 	const serverTime = Temporal.Now.instant()
-	const requestTime = parseDate(request.time)
+	const requestTime = parseDate(time)
 	if (!requestTime) {
 		throw new S3Error(
 			"AccessDenied",
@@ -288,7 +287,7 @@ function parseHeader(headers: any): Record<string, any> {
 			"RequestTimeTooSkewed",
 			"The difference between the request time and the current time is too large.",
 			{
-				RequestTime: request.time,
+				RequestTime: time,
 				ServerTime: serverTime.toString({ smallestUnit: "second" }),
 			},
 		)

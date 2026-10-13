@@ -1,12 +1,13 @@
+import type { XmlRecord } from "../xml-record.ts"
 import escapeRegExp from "lodash/escapeRegExp.js"
 import * as he from "he"
 import { asArray } from "../utils.ts"
-import xmlParser from "../xml.ts"
+import * as xmlParser from "../xml.ts"
 
 import S3Error from "./error.ts"
 import RoutingRule from "./routing-rule.ts"
 
-export function getConfigModel(type: any) {
+export function getConfigModel(type: string) {
 	switch (type) {
 		case "cors":
 			return S3CorsConfiguration
@@ -15,6 +16,8 @@ export function getConfigModel(type: any) {
 		case "tagging":
 			return TaggingConfiguration
 	}
+
+	return undefined
 }
 
 class S3ConfigBase {
@@ -58,7 +61,7 @@ class S3ConfigBase {
 	}
 
 	declare type: string
-	declare rawConfig: Record<string, any>
+	declare rawConfig: XmlRecord
 }
 
 class S3CorsConfiguration extends S3ConfigBase {
@@ -118,23 +121,25 @@ class S3CorsConfiguration extends S3ConfigBase {
 	constructor(config: string) {
 		super("cors", config)
 		const { CORSConfiguration = {} } = this.rawConfig
-		this.rules = asArray(CORSConfiguration.CORSRule || []).map((rule: any) => ({
-			hasWildcardOrigin: asArray(rule.AllowedOrigin || []).includes("*"),
-			allowedOrigins: asArray(rule.AllowedOrigin || []).map((o: any) =>
-				S3CorsConfiguration.createWildcardRegExp(o),
-			),
-			allowedMethods: asArray(rule.AllowedMethod || []),
-			allowedHeaders: asArray(rule.AllowedHeader || []).map((h: any) =>
-				S3CorsConfiguration.createWildcardRegExp(h, "i"),
-			),
-			exposeHeaders: asArray(rule.ExposeHeader || []),
-			maxAgeSeconds: rule.MaxAgeSeconds,
-		}))
+		this.rules = asArray(CORSConfiguration.CORSRule || []).map(
+			(rule: XmlRecord) => ({
+				hasWildcardOrigin: asArray(rule.AllowedOrigin || []).includes("*"),
+				allowedOrigins: asArray(rule.AllowedOrigin || []).map((o: string) =>
+					S3CorsConfiguration.createWildcardRegExp(o),
+				),
+				allowedMethods: asArray(rule.AllowedMethod || []),
+				allowedHeaders: asArray(rule.AllowedHeader || []).map((h: string) =>
+					S3CorsConfiguration.createWildcardRegExp(h, "i"),
+				),
+				exposeHeaders: asArray(rule.ExposeHeader || []),
+				maxAgeSeconds: rule.MaxAgeSeconds,
+			}),
+		)
 	}
 
 	matchRule(origin: string, method: string) {
 		return this.rules.find(
-			(rule: any) =>
+			(rule: XmlRecord) =>
 				rule.allowedOrigins.some((pattern: RegExp) => pattern.test(origin)) &&
 				rule.allowedMethods.includes(method.toUpperCase()),
 		)
@@ -365,7 +370,7 @@ class S3WebsiteConfiguration extends S3ConfigBase {
 				? WebsiteConfiguration.RoutingRules.RoutingRule
 				: [WebsiteConfiguration.RoutingRules.RoutingRule]
 			this.routingRules = routingRules.map(
-				(config: any) => new RoutingRule(config),
+				(ruleConfig: XmlRecord) => new RoutingRule(ruleConfig),
 			)
 		}
 	}

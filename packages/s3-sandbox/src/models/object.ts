@@ -1,3 +1,4 @@
+import type { ObjectMetadata } from "../metadata.ts"
 import { parseDate } from "../temporal-tools.ts"
 import pick from "lodash/pick.js"
 import pickBy from "lodash/pickBy.js"
@@ -12,13 +13,17 @@ class S3Object<
 		bucket: string,
 		key: string,
 		content: TContent,
-		metadata: Record<string, any>,
+		metadata: ObjectMetadata,
 	) {
 		this.bucket = bucket
 		this.key = key
 		this.content = content
 		if ("x-amz-storage-class" in metadata) {
-			if (!S3Object.STORAGE_CLASSES.includes(metadata["x-amz-storage-class"])) {
+			if (
+				!S3Object.STORAGE_CLASSES.includes(
+					String(metadata["x-amz-storage-class"]),
+				)
+			) {
 				throw new S3Error(
 					"InvalidStorageClass",
 					"The storage class you specified is not valid",
@@ -38,7 +43,7 @@ class S3Object<
 		}
 		Object.assign(
 			this.metadata,
-			pickBy(metadata, (v: any, k) => k.startsWith("x-amz-meta-")),
+			pickBy(metadata, (_value, name) => name.startsWith("x-amz-meta-")),
 		)
 	}
 
@@ -47,7 +52,7 @@ class S3Object<
 	}
 
 	get lastModifiedDate() {
-		const instant = parseDate(this.metadata["last-modified"])
+		const instant = parseDate(String(this.metadata["last-modified"]))
 		if (!instant)
 			throw new S3Error(
 				"InternalError",
@@ -59,7 +64,7 @@ class S3Object<
 	declare bucket: string
 	declare key: string
 	declare content: TContent
-	declare metadata: Record<string, any>
+	declare metadata: ObjectMetadata
 	static ALLOWED_METADATA = [
 		"cache-control",
 		"content-disposition",

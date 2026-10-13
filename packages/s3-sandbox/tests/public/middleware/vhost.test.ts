@@ -1,11 +1,14 @@
+import {
+	parseObjectListing,
+	parseBucketListing,
+	required,
+	createServerAndClient,
+} from "../helpers.ts"
 import { Temporal } from "@js-temporal/polyfill"
-import zip from "lodash/zip.js"
 import { describe, expect, it } from "vite-plus/test"
 
 import os from "node:os"
 import request from "../http.ts"
-
-import { createServerAndClient, parseXml } from "../helpers.ts"
 
 describe("Virtual Host resolution", () => {
 	const buckets = [{ name: "bucket-a" }, { name: "bucket-b" }]
@@ -38,12 +41,16 @@ describe("Virtual Host resolution", () => {
 		const res = await request(s3Client.endpoint.href, {
 			headers: { host: "bucket-a" },
 		})
-		const parsedBody = parseXml(res.body)
+		const parsedBody = parseBucketListing(res.body)
 		expect(parsedBody).to.haveOwnProperty("ListAllMyBucketsResult")
 		const parsedBuckets = parsedBody.ListAllMyBucketsResult.Buckets.Bucket
 		expect(parsedBuckets).to.be.instanceOf(Array)
 		expect(parsedBuckets).to.have.lengthOf(buckets.length)
-		for (const [bucket, config] of zip<any>(parsedBuckets, buckets)) {
+		for (const [index, bucket] of (Array.isArray(parsedBuckets)
+			? parsedBuckets
+			: [parsedBuckets]
+		).entries()) {
+			const config = required(buckets[index])
 			expect(bucket.Name).to.equal(config.name)
 			expect(
 				Number.isFinite(
@@ -61,12 +68,16 @@ describe("Virtual Host resolution", () => {
 		const res = await request(s3Client.endpoint.href, {
 			headers: { host: "s3.example.com" },
 		})
-		const parsedBody = parseXml(res.body)
+		const parsedBody = parseBucketListing(res.body)
 		expect(parsedBody).to.haveOwnProperty("ListAllMyBucketsResult")
 		const parsedBuckets = parsedBody.ListAllMyBucketsResult.Buckets.Bucket
 		expect(parsedBuckets).to.be.instanceOf(Array)
 		expect(parsedBuckets).to.have.lengthOf(buckets.length)
-		for (const [bucket, config] of zip<any>(parsedBuckets, buckets)) {
+		for (const [index, bucket] of (Array.isArray(parsedBuckets)
+			? parsedBuckets
+			: [parsedBuckets]
+		).entries()) {
+			const config = required(buckets[index])
 			expect(bucket.Name).to.equal(config.name)
 			expect(
 				Number.isFinite(
@@ -83,12 +94,16 @@ describe("Virtual Host resolution", () => {
 		const res = await request(s3Client.endpoint.href, {
 			headers: { host: os.hostname() },
 		})
-		const parsedBody = parseXml(res.body)
+		const parsedBody = parseBucketListing(res.body)
 		expect(parsedBody).to.haveOwnProperty("ListAllMyBucketsResult")
 		const parsedBuckets = parsedBody.ListAllMyBucketsResult.Buckets.Bucket
 		expect(parsedBuckets).to.be.instanceOf(Array)
 		expect(parsedBuckets).to.have.lengthOf(buckets.length)
-		for (const [bucket, config] of zip<any>(parsedBuckets, buckets)) {
+		for (const [index, bucket] of (Array.isArray(parsedBuckets)
+			? parsedBuckets
+			: [parsedBuckets]
+		).entries()) {
+			const config = required(buckets[index])
 			expect(bucket.Name).to.equal(config.name)
 			expect(
 				Number.isFinite(
@@ -106,7 +121,7 @@ describe("Virtual Host resolution", () => {
 		const res = await request(s3Client.endpoint.href, {
 			headers: { host: "bucket-a.s3.example.com" },
 		})
-		const parsedBody = parseXml(res.body)
+		const parsedBody = parseObjectListing(res.body)
 		expect(parsedBody.ListBucketResult.Name).to.equal("bucket-a")
 	})
 })

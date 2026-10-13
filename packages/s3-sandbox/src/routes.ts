@@ -1,5 +1,5 @@
 import union from "lodash/union.js"
-import Router from "@koa/router"
+import { Router } from "@koa/router"
 
 import * as bucketCtrl from "./controllers/bucket.ts"
 import * as objectCtrl from "./controllers/object.ts"
@@ -9,16 +9,19 @@ import corsMiddleware from "./middleware/cors.ts"
 import responseHeaderOverrideMiddleware from "./middleware/response-header-override.ts"
 import websiteMiddleware from "./middleware/website.ts"
 import S3Error from "./models/error.ts"
-import { type S3Context } from "./types.ts"
+import { type S3Context, type S3State } from "./types.ts"
 
-const router = new Router<any, S3Context>()
+const router = new Router<S3State, S3Context>()
 
 // NOTE: The below is only an approximation of S3's behavior
 // For the most part, S3 will complain if you attempt a bucket method on an object, but
 // it won't consistently reject actions on buckets that are supported by objects (and vice-versa).
 const queryMethod = (methods: string[]) =>
-	async function queryMethod(ctx: S3Context, next: () => Promise<unknown>) {
-		const matchedMethods = methods.filter((method: any) => method in ctx.query)
+	async function selectQueryMethod(
+		ctx: S3Context,
+		next: () => Promise<unknown>,
+	) {
+		const matchedMethods = methods.filter((method) => method in ctx.s3Query)
 		if (matchedMethods.length > 1) {
 			throw new S3Error(
 				"InvalidArgument",
@@ -77,6 +80,8 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 	.get("/:bucket", bucketCtrl.bucketExists, (ctx: S3Context) => {
 		switch (ctx.params.queryMethod) {
@@ -111,6 +116,8 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 	.post("/:bucket", bucketCtrl.bucketExists, (ctx: S3Context) => {
 		switch (ctx.params.queryMethod) {
@@ -121,6 +128,8 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 	.put("/:bucket", async (ctx: S3Context) => {
 		if (ctx.params.queryMethod) {
@@ -157,7 +166,7 @@ router
 		}
 	})
 
-const objectMethods = union(bucketCtrl.METHODS, objectCtrl.METHODS).sort()
+const objectMethods = union(bucketCtrl.METHODS, objectCtrl.METHODS).toSorted()
 router
 	.use("/:bucket/*key", bucketCtrl.bucketExists, queryMethod(objectMethods))
 	.delete("/:bucket/*key", (ctx: S3Context) => {
@@ -169,6 +178,8 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 	.get("/:bucket/*key", (ctx: S3Context) => {
 		switch (ctx.params.queryMethod) {
@@ -188,6 +199,8 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 	.post("/:bucket/*key", (ctx: S3Context) => {
 		switch (ctx.params.queryMethod) {
@@ -201,15 +214,17 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 	.put("/:bucket/*key", (ctx: S3Context) => {
 		switch (ctx.params.queryMethod) {
 			case undefined:
-				return "x-amz-copy-source" in ctx.headers
+				return "x-amz-copy-source" in ctx.s3Headers
 					? objectCtrl.putObjectCopy(ctx)
 					: objectCtrl.putObject(ctx)
 			case "uploadId":
-				return "x-amz-copy-source" in ctx.headers
+				return "x-amz-copy-source" in ctx.s3Headers
 					? objectCtrl.uploadPartCopy(ctx)
 					: objectCtrl.uploadPart(ctx)
 			case "tagging":
@@ -222,6 +237,8 @@ router
 			default:
 				ctx.state.methodIsNotAllowed = true
 		}
+
+		return undefined
 	})
 
 // append trailing slash to key when applicable

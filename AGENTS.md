@@ -10,3 +10,4 @@
 - Before 1.0, use patch changesets for compatible features and fixes, and minor changesets for breaking changes. Keep each changeset body on one line. The first release is `0.1.0` under `@beaugmented/s3-sandbox`.
 - Use the target Vite Plus release's official `vp migrate --no-interactive` for upgrades. Preserve the previous lockfile until migration runs; review its findings and run formatting, checks, tests, and package validation.
 - Runtime dependencies must be declared explicitly and pinned. Preserve the inherited MIT notices and attribution.
+- Run Oxlint through `pnpm check:vp`; its type-aware rules reject explicit `any`, unsafe operations, and ignored promises. Keep any exception narrow and explain it in `docs/implementation-review.md`.

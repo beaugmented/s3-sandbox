@@ -33,4 +33,4 @@ Package-level commands retain the same meaning while narrowing scope. `test:publ
 
 The inherited AWS SDK v2 fixtures exercise legacy client and signature contracts. AWS SDK v3 tests verify current client interoperability. Neither SDK is a runtime dependency.
 
-Vite Plus handles linting and typechecking; dprint handles formatting separately. The test-specific assertion rule permits Chai-style assertions through the Vite Plus test API. The declaration bundler temporarily uses TypeScript 6 through `.pnpmfile.mjs`; maintained source is checked with TypeScript 7.
+Vite Plus runs Oxlint and strict type checking through `check:vp`; warnings and unused suppression comments fail validation. dprint handles formatting separately. The test-specific assertion rule permits Chai-style assertions through the Vite Plus test API. The declaration bundler temporarily uses TypeScript 6 through the typed hook imported by `.pnpmfile.mjs`; maintained source is checked with TypeScript 7. See the [implementation review](implementation-review.md) for the deferred XML exception and protocol anomalies.

@@ -10,6 +10,8 @@ The workspace follows [lasertag](https://github.com/jeremybanka/lasertag)'s tool
 
 See [repository commands](docs/commands.md), [release setup](docs/releases.md), and [contributor guidance](AGENTS.md).
 
+The [implementation review](docs/implementation-review.md) records the scoped XML lint exception and protocol work that needs further decisions.
+
 ## Attribution and license
 
 This project derives from Jamie Hall's [S3rver](https://github.com/jamhall/s3rver). Its inherited S3 protocol behavior and filesystem layout are retained. This fork is licensed under [MPL-2.0](LICENSE). [NOTICE](NOTICE) identifies the inherited upstream material, whose original [MIT notice](LICENSES/MIT.txt) is preserved.

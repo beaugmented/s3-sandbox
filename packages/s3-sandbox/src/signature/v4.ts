@@ -1,3 +1,7 @@
+import type { V4Request } from "./types.ts"
+import type { Readable, TransformCallback } from "node:stream"
+import { asError } from "../error-tools.ts"
+import type { Hash } from "node:crypto"
 import { Temporal } from "@js-temporal/polyfill"
 import { createHash, createHmac } from "node:crypto"
 import { Transform } from "node:stream"
@@ -8,7 +12,9 @@ import { parseISO8601String } from "../utils.ts"
 
 const CRLF = Buffer.from("\r\n")
 
-export function parseHeader(headers: any) {
+export function parseHeader(
+	headers: Record<string, string>,
+): Omit<V4Request, "signature" | "time"> {
 	if (!("x-amz-content-sha256" in headers)) {
 		throw new S3Error(
 			"InvalidRequest",
@@ -31,14 +37,14 @@ export function parseHeader(headers: any) {
 	}
 
 	const componentMap = new Map<string, string>(
-		headers.authorization
+		(headers.authorization ?? "")
 			.split(" ")
 			.slice(1)
 			.join("")
 			.split(",")
-			.map((component: any) => {
+			.map((component: string) => {
 				const [key, ...value] = component.split("=")
-				return [key, value.join("=")]
+				return [key ?? "", value.join("=")]
 			}),
 	)
 
@@ -61,19 +67,23 @@ export function parseHeader(headers: any) {
 		// skip verification of each authorization header component
 	}
 
-	const [accessKeyId, date, region, service, termination] = componentMap
-		.get("Credential")!
-		.split("/")
+	const [
+		accessKeyId = "",
+		date = "",
+		region = "",
+		service = "",
+		termination = "",
+	] = componentMap.get("Credential")!.split("/")
 
 	return {
 		accessKeyId,
 		credential: { date, region, service, termination },
 		signedHeaders: componentMap.get("SignedHeaders")!.split(";"),
-		signatureProvided: componentMap.get("Signature"),
+		signatureProvided: componentMap.get("Signature") ?? "",
 	}
 }
 
-export function parseQuery(query: any) {
+export function parseQuery(query: Record<string, string>): V4Request {
 	// query param values are case-sensitive
 	if (query["X-Amz-Algorithm"] !== "AWS4-HMAC-SHA256") {
 		throw new S3Error(
@@ -96,14 +106,19 @@ export function parseQuery(query: any) {
 				"X-Amz-SignedHeaders, and X-Amz-Expires parameters.",
 		)
 	}
-	const [accessKeyId, date, region, service, termination] =
-		query["X-Amz-Credential"].split("/")
+	const [
+		accessKeyId = "",
+		date = "",
+		region = "",
+		service = "",
+		termination = "",
+	] = query["X-Amz-Credential"].split("/")
 
 	const request = {
 		signature: {
-			version: 4,
-			algorithm: "sha256",
-			encoding: "hex",
+			version: 4 as const,
+			algorithm: "sha256" as const,
+			encoding: "hex" as const,
 		},
 		accessKeyId,
 		credential: { date, region, service, termination },
@@ -121,6 +136,7 @@ export function parseQuery(query: any) {
 	}
 
 	const expires = Number(query["X-Amz-Expires"])
+	// Negative and fractional lifetimes retain inherited behavior; see docs/implementation-review.md.
 	if (!Number.isFinite(expires)) {
 		throw new S3Error(
 			"AuthorizationQueryParametersError",
@@ -180,7 +196,7 @@ export function getStringToSign(
 	},
 ): string {
 	const canonicalHeaders = signedHeaders
-		.map((header: any) => `${header}:${canonicalRequest.headers[header]}\n`)
+		.map((header) => `${header}:${canonicalRequest.headers[header]}\n`)
 		.join("")
 
 	const contentHash =
@@ -271,7 +287,7 @@ class AwsChunkedTransform extends Transform {
 			.slice(0, -CRLF.length)
 			.toString()
 			.split(";")
-		const nextChunkSize = parseInt(sizeHex, 16)
+		const nextChunkSize = parseInt(sizeHex ?? "", 16)
 
 		// The chunk number AWS reports seem to be off by one, likely because the check for the small
 		// chunk sizes doesn't happen until next chunk's header is parsed and the counter is incremented
@@ -302,7 +318,10 @@ class AwsChunkedTransform extends Transform {
 			nextChunkSize
 		this.chunkDecoderState.hash = createHash("sha256")
 		this.chunkDecoderState.header = new Map(
-			params.map((entry: any) => entry.split("=")),
+			params.map((entry): [string, string] => {
+				const [name = "", value = ""] = entry.split("=")
+				return [name, value]
+			}),
 		)
 
 		// AWS's chunk header parsing seems to naively assume that only one param is ever
@@ -376,14 +395,19 @@ class AwsChunkedTransform extends Transform {
 			this.chunkDecoderState.buf,
 			payload,
 		])
-		this.chunkDecoderState.hash.update(payload)
+		this.chunkDecoderState.hash?.update(payload)
 		this.chunkDecoderState.bytesRemaining -= payload.length
 		return payload.length
 	}
 
-	_transform(chunk: Buffer, encoding: any, callback: any) {
+	_transform(
+		chunk: Buffer,
+		encoding: BufferEncoding,
+		callback: TransformCallback,
+	) {
 		if (!this.readableFlowing) {
 			// don't transform anything if nothing is reading the data yet
+			// oxlint-disable-next-line eslint/no-underscore-dangle -- Node Transform requires this hook name.
 			this.once("resume", () => this._transform(chunk, encoding, callback))
 			return
 		}
@@ -399,7 +423,7 @@ class AwsChunkedTransform extends Transform {
 						this.chunkDecoderState.buf = Buffer.alloc(0)
 					} else {
 						if (this.chunkDecoderState.hash) {
-							// TODO: validate signatures before verifying CRLF
+							// TODO: verify chunk signatures and payload hashes; see docs/implementation-review.md.
 							// const hashDigest = this.chunkDecoderState.hash.digest();
 							this.chunkDecoderState.hash = null
 						}
@@ -416,12 +440,12 @@ class AwsChunkedTransform extends Transform {
 				}
 			} while (i < chunk.length)
 			callback(null, payload)
-		} catch (err: any) {
-			callback(err)
+		} catch (err: unknown) {
+			callback(asError(err))
 		}
 	}
 
-	_flush(callback: any) {
+	_flush(callback: TransformCallback) {
 		const { size, decodedContentLength, expectedContentLength } =
 			this.chunkDecoderState
 		// the final chunk processed should have zero length
@@ -444,7 +468,16 @@ class AwsChunkedTransform extends Transform {
 		}
 	}
 
-	declare chunkDecoderState: any
+	declare chunkDecoderState: {
+		num: number
+		size: number
+		header: Map<string, string> | null
+		hash: Hash | null
+		bytesRemaining: number
+		buf: Buffer
+		decodedContentLength: number
+		expectedContentLength: number
+	}
 }
 
 /**
@@ -454,13 +487,16 @@ class AwsChunkedTransform extends Transform {
  *
  * @param ctx
  */
-export function aws4SignatureBodyParser(ctx: S3Context): void {
-	ctx.request.body =
-		ctx.header["x-amz-content-sha256"] === "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
+export function aws4SignatureBodyParser(ctx: S3Context): Readable {
+	const body =
+		ctx.s3Headers["x-amz-content-sha256"] ===
+		"STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
 			? ctx.req.pipe(
 					new AwsChunkedTransform(
 						parseInt(ctx.get("X-Amz-Decoded-Content-Length")),
 					),
 				)
 			: ctx.req
+	ctx.request.body = body
+	return body
 }

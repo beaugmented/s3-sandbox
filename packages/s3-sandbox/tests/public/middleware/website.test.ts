@@ -1,11 +1,17 @@
+import {
+	errorCode,
+	errorStatus,
+	errorResponse,
+	type TestS3Client,
+	createServerAndClient,
+} from "../helpers.ts"
+import type { HttpResponse } from "../http.ts"
 import fs from "node:fs"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
 import request from "../http.ts"
 
-import { createServerAndClient } from "../helpers.ts"
-
 describe("Static Website Tests", function () {
-	let s3Client: any
+	let s3Client: TestS3Client
 	const buckets = [
 		// a bucket with no additional config
 		{
@@ -67,14 +73,14 @@ describe("Static Website Tests", function () {
 				Body: "<html><body>Hello</body></html>",
 			})
 			.promise()
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("page/", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { host: `bucket-a.s3-website-us-east-1.amazonaws.com` },
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(404)
 		expect(res.headers).to.have.property(
@@ -101,15 +107,15 @@ describe("Static Website Tests", function () {
 	})
 
 	it("allows redirects for image requests", async function () {
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("website3/complex/image.png", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "image/png" },
 				followRedirect: false,
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(307)
 		expect(res.headers).to.have.property(
@@ -168,15 +174,15 @@ describe("Static Website Tests", function () {
 				Body: body,
 			})
 			.promise()
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("website0/page", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
 				followRedirect: false,
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(302)
 		expect(res.headers).to.have.property("location", "/website0/page/")
@@ -191,29 +197,29 @@ describe("Static Website Tests", function () {
 				Body: body,
 			})
 			.promise()
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("page", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { host: "website0.s3-website-us-east-1.amazonaws.com" },
 				followRedirect: false,
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(302)
 		expect(res.headers).to.have.property("location", "/page/")
 	})
 
 	it("returns a HTML 404 error page", async function () {
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("website0/page/not-exists", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(404)
 		expect(res.headers).to.have.property(
@@ -224,14 +230,14 @@ describe("Static Website Tests", function () {
 	})
 
 	it("returns a HTML 404 error page for a missing index key", async function () {
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("website0/page/not-exists/", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(404)
 		expect(res.headers).to.have.property(
@@ -251,14 +257,14 @@ describe("Static Website Tests", function () {
 				ContentType: "text/html",
 			})
 			.promise()
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request("website1/page/not-exists", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.headers).to.have.property(
 			"content-type",
@@ -268,7 +274,7 @@ describe("Static Website Tests", function () {
 	})
 
 	it("returns a XML error document for SDK requests", async function () {
-		let error: any
+		let error: unknown
 		try {
 			await s3Client
 				.getObject({
@@ -276,12 +282,12 @@ describe("Static Website Tests", function () {
 					Key: "page/not-exists",
 				})
 				.promise()
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		}
 		expect(error).to.exist
-		expect(error.statusCode).to.equal(404)
-		expect(error.code).to.equal("NoSuchKey")
+		expect(errorStatus(error)).to.equal(404)
+		expect(errorCode(error)).to.equal("NoSuchKey")
 	})
 
 	it("stores an object with website-redirect-location metadata", async function () {
@@ -313,15 +319,15 @@ describe("Static Website Tests", function () {
 				WebsiteRedirectLocation: redirectLocation,
 			})
 			.promise()
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request(`website0/`, {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
 				followRedirect: false,
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(301)
 		expect(res.headers).to.have.property("location", redirectLocation)
@@ -338,15 +344,15 @@ describe("Static Website Tests", function () {
 				WebsiteRedirectLocation: redirectLocation,
 			})
 			.promise()
-		let res: any
+		let res!: HttpResponse
 		try {
 			res = await request(`website1/page/`, {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
 				followRedirect: false,
 			})
-		} catch (err: any) {
-			res = err.response
+		} catch (err: unknown) {
+			res = errorResponse(err)
 		}
 		expect(res.statusCode).to.equal(301)
 		expect(res.headers).to.have.property("location", redirectLocation)
@@ -354,15 +360,15 @@ describe("Static Website Tests", function () {
 
 	describe("Routing rules", () => {
 		it("evaluates a single simple routing rule", async function () {
-			let res: any
+			let res!: HttpResponse
 			try {
 				res = await request(`website2/test/key/`, {
 					baseUrl: s3Client.endpoint.href,
 					headers: { accept: "text/html" },
 					followRedirect: false,
 				})
-			} catch (err: any) {
-				res = err.response
+			} catch (err: unknown) {
+				res = errorResponse(err)
 			}
 			expect(res.statusCode).to.equal(301)
 			expect(res.headers).to.have.property(
@@ -396,15 +402,15 @@ describe("Static Website Tests", function () {
 					Body: expectedBody,
 				})
 				.promise()
-			let res: any
+			let res!: HttpResponse
 			try {
 				res = await request("website2/recursive/foo", {
 					baseUrl: s3Client.endpoint.href,
 					headers: { accept: "text/html" },
 					followRedirect: false,
 				})
-			} catch (err: any) {
-				res = err.response
+			} catch (err: unknown) {
+				res = errorResponse(err)
 			}
 			expect(res.statusCode).to.equal(302)
 			expect(res.headers).to.have.property(
@@ -414,15 +420,15 @@ describe("Static Website Tests", function () {
 		})
 
 		it("evaluates a multi-rule config", async function () {
-			let res: any
+			let res!: HttpResponse
 			try {
 				res = await request(`website3/simple/key`, {
 					baseUrl: s3Client.endpoint.href,
 					headers: { accept: "text/html" },
 					followRedirect: false,
 				})
-			} catch (err: any) {
-				res = err.response
+			} catch (err: unknown) {
+				res = errorResponse(err)
 			}
 			expect(res.statusCode).to.equal(301)
 			expect(res.headers).to.have.property(
@@ -432,15 +438,15 @@ describe("Static Website Tests", function () {
 		})
 
 		it("evaluates a complex rule", async function () {
-			let res: any
+			let res!: HttpResponse
 			try {
 				res = await request(`website3/complex/key`, {
 					baseUrl: s3Client.endpoint.href,
 					headers: { accept: "text/html" },
 					followRedirect: false,
 				})
-			} catch (err: any) {
-				res = err.response
+			} catch (err: unknown) {
+				res = errorResponse(err)
 			}
 			expect(res.statusCode).to.equal(307)
 			expect(res.headers).to.have.property(

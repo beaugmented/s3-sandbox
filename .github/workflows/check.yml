@@ -19,7 +19,7 @@ defaults:
 
 jobs:
   VitePlus:
-    name: Vite Plus
+    name: Oxlint and TypeScript
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

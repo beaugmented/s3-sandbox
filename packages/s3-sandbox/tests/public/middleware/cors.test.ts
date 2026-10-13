@@ -1,3 +1,4 @@
+import { errorCode, errorMessage, errorResponse } from "../helpers.ts"
 import AWS from "aws-sdk"
 import fs from "node:fs"
 import { describe, expect, it } from "vite-plus/test"
@@ -17,7 +18,7 @@ describe("CORS Policy Tests", function () {
 	]
 
 	it("fails to initialize a configuration with multiple wildcard characters", async function () {
-		let error: any
+		let error: unknown
 		try {
 			const server = new S3rver({
 				configureBuckets: [
@@ -33,11 +34,13 @@ describe("CORS Policy Tests", function () {
 			})
 			await server.run()
 			await server.close()
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		}
 		expect(error).to.exist
-		expect(error.message).to.include(" can not have more than one wildcard.")
+		expect(errorMessage(error)).to.include(
+			" can not have more than one wildcard.",
+		)
 	})
 
 	it("fails to initialize a configuration with an illegal AllowedMethod", async function () {
@@ -53,15 +56,15 @@ describe("CORS Policy Tests", function () {
 				},
 			],
 		})
-		let error: any
+		let error: unknown
 		try {
 			await server.run()
 			await server.close()
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		}
 		expect(error).to.exist
-		expect(error.message).to.include(
+		expect(errorMessage(error)).to.include(
 			"Found unsupported HTTP method in CORS config.",
 		)
 	})
@@ -79,15 +82,15 @@ describe("CORS Policy Tests", function () {
 				},
 			],
 		})
-		let error: any
+		let error: unknown
 		try {
 			await server.run()
 			await server.close()
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		}
 		expect(error).to.exist
-		expect(error.code).to.equal("MalformedXML")
+		expect(errorCode(error)).to.equal("MalformedXML")
 	})
 
 	it("deletes a CORS configuration in an configured bucket", async function () {
@@ -102,17 +105,17 @@ describe("CORS Policy Tests", function () {
 			sslEnabled: false,
 			s3ForcePathStyle: true,
 		})
-		let error: any
+		let error: unknown
 		try {
 			await s3Client.deleteBucketCors({ Bucket: buckets[0]!.name }).promise()
 			await s3Client.getBucketCors({ Bucket: buckets[0]!.name }).promise()
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		} finally {
 			await server.close()
 		}
 		expect(error).to.exist
-		expect(error.code).to.equal("NoSuchCORSConfiguration")
+		expect(errorCode(error)).to.equal("NoSuchCORSConfiguration")
 	})
 
 	it("adds the Access-Control-Allow-Origin header for a wildcard origin", async function () {
@@ -373,7 +376,7 @@ describe("CORS Policy Tests", function () {
 			Bucket: buckets[0]!.name,
 			Key: "image",
 		})
-		let error: any
+		let error: unknown
 		try {
 			await request(url, {
 				method: "OPTIONS",
@@ -383,13 +386,13 @@ describe("CORS Policy Tests", function () {
 					"Access-Control-Request-Headers": "Range, Authorization",
 				},
 			})
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		} finally {
 			await server.close()
 		}
 		expect(error).to.exist
-		expect(error.response.statusCode).to.equal(403)
+		expect(errorResponse(error).statusCode).to.equal(403)
 	})
 
 	it("responds to OPTIONS requests with a Forbidden response when CORS is disabled", async function () {
@@ -410,7 +413,7 @@ describe("CORS Policy Tests", function () {
 			Bucket: bucket.name,
 			Key: "image",
 		})
-		let error: any
+		let error: unknown
 		try {
 			await request(url, {
 				method: "OPTIONS",
@@ -419,13 +422,13 @@ describe("CORS Policy Tests", function () {
 					"Access-Control-Request-Method": "GET",
 				},
 			})
-		} catch (err: any) {
+		} catch (err: unknown) {
 			error = err
 		} finally {
 			await server.close()
 		}
 		expect(error).to.exist
-		expect(error.response.statusCode).to.equal(403)
+		expect(errorResponse(error).statusCode).to.equal(403)
 	})
 
 	it("responds correctly to OPTIONS requests that dont specify access-control-request-headers", async function () {

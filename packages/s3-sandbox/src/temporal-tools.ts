@@ -10,6 +10,7 @@ export function iso8601FromInstant(
 export function iso8601FromInstant(
 	instant: Temporal.Instant | null,
 ): Iso8601 | null {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- This constructor brands Temporal's canonical UTC millisecond output.
 	return (instant?.toString({ smallestUnit: "millisecond" }) as Iso8601) ?? null
 }
 
@@ -46,7 +47,6 @@ const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 /** HTTP timestamps use IMF-fixdate and always describe UTC, with second precision. */
 export function toHttpDate(instant: Temporal.Instant): string {
 	const utc = instant.toZonedDateTimeISO("UTC")
-	const pad = (value: number) => String(value).padStart(2, "0")
 	return `${weekdays[utc.dayOfWeek - 1]}, ${pad(utc.day)} ${months[utc.month - 1]} ${String(utc.year).padStart(4, "0")} ${pad(utc.hour)}:${pad(utc.minute)}:${pad(utc.second)} GMT`
 }
 
@@ -141,4 +141,8 @@ export function parseDate(value: string): Temporal.Instant | null {
 /** Format the compact AWS signing timestamp without separators or fractions. */
 export function toISO8601String(instant: Temporal.Instant): string {
 	return instant.toString({ smallestUnit: "second" }).replace(/[-:]/g, "")
+}
+
+function pad(value: number): string {
+	return String(value).padStart(2, "0")
 }

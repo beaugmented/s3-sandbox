@@ -18,7 +18,7 @@ afterEach(async function () {
 		[...instances].map(async (instance) => {
 			try {
 				await instance.close()
-			} catch (err: any) {
+			} catch (err: unknown) {
 				console.warn(err)
 			}
 		}),

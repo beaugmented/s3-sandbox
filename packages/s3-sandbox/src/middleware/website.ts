@@ -1,3 +1,5 @@
+import { Readable } from "node:stream"
+import { asError } from "../error-tools.ts"
 import { format } from "node:util"
 import status from "statuses"
 
@@ -38,13 +40,21 @@ export default () =>
 			return next()
 		}
 
-		ctx.onerror = onerror
+		// oxlint-disable-next-line unicorn/prefer-add-event-listener -- Koa exposes an error hook, not a DOM event.
+		ctx.onerror = (error: unknown) => {
+			// oxlint-disable-next-line promise/no-promise-in-callback -- Bridge the void Koa hook to async error-document lookup with rejection handling.
+			void onerror.call(ctx, error).catch((failure: unknown) => {
+				const normalized = asError(failure)
+				ctx.app.emit("error", normalized, ctx)
+				ctx.res.destroy(normalized)
+			})
+		}
 		ctx.state.website = config || {}
 
 		// throw website-specific errors for requests to a .s3-website vhost
 		if (ctx.state.service === "s3-website") {
 			// disallow x-amz-* query params for website requests
-			for (const key of Object.keys(ctx.query)) {
+			for (const key of Object.keys(ctx.s3Query)) {
 				if (key.toLowerCase().startsWith("x-amz-")) {
 					throw new S3Error(
 						"UnsupportedQuery",
@@ -68,10 +78,10 @@ export default () =>
 				throw new S3Error("NoSuchKey", "", { Key: "" })
 			}
 			await next()
-		} catch (err: any) {
-			if (err.code !== "NoSuchKey") throw err
+		} catch (err: unknown) {
+			if (!(err instanceof S3Error) || err.code !== "NoSuchKey") throw err
 
-			const key = err.detail.Key
+			const key = String(err.detail.Key)
 			const indexDocumentPrefix =
 				key === "" || key.endsWith("/") ? key : key + "/"
 			const indexExists = await ctx.store.existsObject(
@@ -100,7 +110,7 @@ export default () =>
 				// Only 404s are supported for RoutingRules right now, this may be a deviation from S3 behavior but we don't
 				// have a reproduction of a scenario where S3 does a redirect on a status code other than 404. If you're
 				// reading this comment and you have a use-case, please raise an issue with details of your scenario. Thanks!
-				const routingRule = (config.routingRules || []).find((rule: any) =>
+				const routingRule = (config.routingRules || []).find((rule) =>
 					rule.shouldRedirect(key, 404),
 				)
 				if (!routingRule) {
@@ -123,12 +133,14 @@ export default () =>
 				"x-amz-website-redirect-location",
 			)
 			if (objectRedirectLocation) {
-				;(ctx.body as import("node:stream").Readable).destroy()
+				if (ctx.body instanceof Readable) ctx.body.destroy()
 				ctx.status = 301
 				ctx.remove("x-amz-website-redirect-location")
 				ctx.redirect(objectRedirectLocation)
 			}
 		}
+
+		return undefined
 	}
 
 /**
@@ -141,8 +153,8 @@ function redirect(this: S3Context, url: string): void {
 	const { res } = this
 	res
 		.getHeaderNames()
-		.filter((name: any) => !name.match(/^access-control-|vary|x-amz-/i))
-		.forEach((name: any) => res.removeHeader(name))
+		.filter((name) => !name.match(/^access-control-|vary|x-amz-/i))
+		.forEach((name) => res.removeHeader(name))
 
 	this.set("Location", url)
 
@@ -150,9 +162,9 @@ function redirect(this: S3Context, url: string): void {
 	if (!status.redirect[this.status]) this.status = 302
 
 	if (this.status === 302) {
-		const redirect = new S3Error("Found", "Resource Found")
-		redirect.description = "302 Moved Temporarily"
-		this.body = redirect.toHTML()
+		const redirectError = new S3Error("Found", "Resource Found")
+		redirectError.description = "302 Moved Temporarily"
+		this.body = redirectError.toHTML()
 		this.type = "text/html"
 	} else {
 		this.body = ""
@@ -195,8 +207,8 @@ async function onerror(this: S3Context, err: unknown): Promise<void> {
 	// first unset all headers
 	res
 		.getHeaderNames()
-		.filter((name: any) => !name.match(/^access-control-|vary|x-amz-/i))
-		.forEach((name: any) => res.removeHeader(name))
+		.filter((name) => !name.match(/^access-control-|vary|x-amz-/i))
+		.forEach((name) => res.removeHeader(name))
 
 	// (the presence of x-amz-error-* headers needs additional research)
 	// this.set(s3Error.headers);
@@ -208,7 +220,7 @@ async function onerror(this: S3Context, err: unknown): Promise<void> {
 		s3Error.description = `${s3Error.status} ${status.message[s3Error.status]}`
 
 	// respond
-	const { website } = this.state
+	const website = this.state.website ?? {}
 	if (
 		s3Error.code !== "NoSuchBucket" &&
 		s3Error.code !== "UnsupportedQuery" &&
@@ -225,10 +237,10 @@ async function onerror(this: S3Context, err: unknown): Promise<void> {
 			if (objectRedirectLocation) {
 				object.content?.destroy()
 				this.status = 301
-				this.redirect(objectRedirectLocation)
+				this.redirect(String(objectRedirectLocation))
 				res.end(this.body)
 			} else {
-				this.type = object.metadata["content-type"]
+				this.type = String(object.metadata["content-type"])
 				this.length = object.size
 				object.content?.pipe(res)
 			}
