@@ -138,7 +138,9 @@ class FilesystemStore {
 				md5Context.update(content)
 				const digest = md5Context.digest("hex")
 				writeStream.once("error", reject)
-				writeStream.end(content, () => resolve([content.length, digest]))
+				writeStream.end(content, (error?: Error | null) =>
+					error ? reject(error) : resolve([content.length, digest]),
+				)
 			} else {
 				let totalLength = 0
 				pipeline(
