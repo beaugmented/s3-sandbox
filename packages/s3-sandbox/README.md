@@ -2,6 +2,8 @@
 
 A local S3-compatible server for development and isolated tests, derived from [S3rver](https://github.com/jamhall/s3rver). Requires Node 26.11.1 and ESM.
 
+This fork is maintained by [Augmented](https://github.com/beaugmented). Please report issues and request support in [this repository](https://github.com/beaugmented/s3-sandbox/issues).
+
 ## Install and run
 
 ```sh
@@ -154,6 +156,6 @@ PUT, POST, COPY, and DELETE operations emit notifications following the [S3 even
 
 ## License and attribution
 
-This fork is licensed under [MPL-2.0](LICENSE). It derives from Jamie Hall's S3rver; [NOTICE](NOTICE) identifies the inherited material and its original [MIT notice](LICENSES/MIT.txt). The upstream filesystem suffixes are preserved.
+This fork is licensed under [MPL-2.0](LICENSE). Jamie Hall is the original author of [S3rver](https://github.com/jamhall/s3rver), on which this project is based. [NOTICE](NOTICE) identifies the inherited material and its original [MIT notice](LICENSES/MIT.txt). The upstream filesystem suffixes are preserved.
 
 The absorbed multipart implementation also retains Brian White's [MIT notice](LICENSES/busboy-MIT.txt).

@@ -20,13 +20,13 @@
 	},
 	"license": "MPL-2.0",
 	"author": {
-		"name": "Jamie Hall",
-		"email": "hello@jamiehall.eu",
-		"url": "http://github.com/jamhall/s3rver"
+		"name": "Augmented",
+		"url": "https://github.com/beaugmented"
 	},
 	"contributors": [
 		{
-			"name": "beaugmented"
+			"name": "Jeremy Banka",
+			"url": "https://github.com/jeremybanka"
 		}
 	],
 	"type": "module",
