@@ -47,7 +47,7 @@ beforeAll(() => {
 			dependencies: { "@beaugmented/s3-sandbox": `file:./${tarball}` },
 		}),
 	)
-	pnpm(["install", "--offline", "--ignore-scripts"], consumer)
+	pnpm(["install", "--prefer-offline", "--ignore-scripts"], consumer)
 }, 120000)
 afterAll(() => {
 	if (consumer) rmSync(consumer, { recursive: true, force: true })
