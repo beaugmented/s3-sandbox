@@ -9,7 +9,9 @@ import {
 import S3rver from "../../../src/s3rver.ts"
 import type { HttpResponse } from "../http.ts"
 import { toHttpDate } from "../../../src/temporal-tools.ts"
-import express from "express"
+import { Hono } from "hono"
+import type { HttpBindings } from "@hono/node-server"
+import { createHonoListener } from "../hono.ts"
 import fs from "node:fs"
 import { URL } from "node:url"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
@@ -364,12 +366,12 @@ describe("REST Authentication", () => {
 	})
 
 	it("can use signed URLs while mounted on a subpath", async function () {
-		const app = express()
-		app.use("/basepath", s3rver.getMiddleware())
+		const app = new Hono<{ Bindings: HttpBindings }>()
+		app.use("/basepath/*", s3rver.getHonoMiddleware("/basepath"))
 
 		const { httpServer } = s3rver
 		required(httpServer).removeAllListeners("request")
-		required(httpServer).on("request", app)
+		required(httpServer).on("request", createHonoListener(app))
 		setTestEndpoint(
 			s3Client,
 			`${s3Client.endpoint.protocol}//localhost:${s3Client.endpoint.port}/basepath`,
@@ -395,12 +397,12 @@ describe("REST Authentication", () => {
 			Body: "Hello!",
 		})
 
-		const app = express()
-		app.use("/basepath", s3rver.getMiddleware())
+		const app = new Hono<{ Bindings: HttpBindings }>()
+		app.use("/basepath/*", s3rver.getHonoMiddleware("/basepath"))
 
 		const { httpServer } = s3rver
 		required(httpServer).removeAllListeners("request")
-		required(httpServer).on("request", app)
+		required(httpServer).on("request", createHonoListener(app))
 
 		const endpointHref = s3Client.endpoint.href
 		setTestEndpoint(

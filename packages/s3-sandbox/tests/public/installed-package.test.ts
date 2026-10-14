@@ -138,7 +138,8 @@ const sandbox = new S3Sandbox(options)
 const running: Promise<import('node:net').AddressInfo> = sandbox.run()
 const stopped: Promise<void> = sandbox.close()
 const middleware: ReturnType<S3Sandbox['callback']> = sandbox.getMiddleware()
-void [running, stopped, middleware]
+const honoMiddleware = sandbox.getHonoMiddleware('/s3')
+void [running, stopped, middleware, honoMiddleware]
 // @ts-expect-error invalid option type must be rejected
 new S3Sandbox({ port: 'bad' })
 `,

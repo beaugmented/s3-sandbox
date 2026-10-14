@@ -1,5 +1,5 @@
 import { protocolHeaders, protocolQuery } from "./protocol-request.ts"
-import { Hono } from "hono"
+import { Hono, type MiddlewareHandler } from "hono"
 import { getRequestListener, type HttpBindings } from "@hono/node-server"
 import { EventEmitter } from "node:events"
 import { S3HttpContext } from "./http-context.ts"
@@ -67,7 +67,7 @@ export default class S3Sandbox extends EventEmitter {
 	declare logger: SandboxLogger
 	readonly silent: boolean
 	private readonly application = new Hono<{
-		Bindings: HttpBindings
+		Bindings: HttpBindings & { mountPath?: string }
 		Variables: { s3: S3Context }
 	}>()
 	readonly store: FilesystemStore
@@ -138,7 +138,11 @@ export default class S3Sandbox extends EventEmitter {
 		const vhost = vhostMiddleware({ serviceEndpoint, vhostBuckets })
 		this.on("error", (error: Error) => this.logger.error(error.message))
 		this.application.use("*", async (context, next) => {
-			const ctx = new S3HttpContext(this, context.env.incoming)
+			const ctx = new S3HttpContext(
+				this,
+				context.env.incoming,
+				context.env.mountPath,
+			)
 			context.set("s3", ctx)
 			ctx.s3Headers = protocolHeaders(ctx.headers)
 			ctx.s3Query = protocolQuery(ctx.query)
@@ -212,6 +216,33 @@ export default class S3Sandbox extends EventEmitter {
 	}
 	getMiddleware() {
 		return this.callback()
+	}
+	/** Mount in a Hono app using its Node adapter, preserving raw paths for signing. */
+	getHonoMiddleware(
+		mountPath = "",
+	): MiddlewareHandler<{ Bindings: HttpBindings }> {
+		if (
+			mountPath &&
+			(!mountPath.startsWith("/") ||
+				mountPath.endsWith("/") ||
+				/[?#]/u.test(mountPath))
+		)
+			throw new TypeError(
+				"Mount path must start with / and have no trailing /, query, or fragment",
+			)
+		return async (context, next) => {
+			const rawPath = (context.env.incoming.url ?? "/").split("?")[0] ?? "/"
+			if (
+				mountPath &&
+				rawPath !== mountPath &&
+				!rawPath.startsWith(mountPath + "/")
+			)
+				return next()
+			return this.application.fetch(context.req.raw, {
+				...context.env,
+				mountPath,
+			})
+		}
 	}
 
 	run(): Promise<AddressInfo>

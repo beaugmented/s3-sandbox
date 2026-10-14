@@ -38,15 +38,21 @@ export class S3HttpContext {
 	private responseStatus = 404
 	private explicitStatus = false
 
-	constructor(app: S3Sandbox, req: IncomingMessage & { baseUrl?: string }) {
+	constructor(
+		app: S3Sandbox,
+		req: IncomingMessage & { baseUrl?: string },
+		mountPath?: string,
+	) {
 		this.app = app
 		this.req = req
 		this.headers = req.headers
-		this.originalUrl = req.url ?? "/"
-		this.mountPath = req.baseUrl ?? ""
+		const rawUrl = req.url ?? "/"
+		this.originalUrl = mountPath ? rawUrl.slice(mountPath.length) : rawUrl
+		this.mountPath = mountPath ?? req.baseUrl ?? ""
 		const question = this.originalUrl.indexOf("?")
 		this.path =
-			question < 0 ? this.originalUrl : this.originalUrl.slice(0, question)
+			(question < 0 ? this.originalUrl : this.originalUrl.slice(0, question)) ||
+			"/"
 		this.query = parse(question < 0 ? "" : this.originalUrl.slice(question + 1))
 		this.handleError = async (value) => {
 			const error = value instanceof Error ? value : new Error(String(value))

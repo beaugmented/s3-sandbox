@@ -3,10 +3,14 @@ import {
 	nextS3Event,
 	createServerAndClient,
 	generateTestObjects,
+	readBody,
 } from "./helpers.ts"
-import express from "express"
+import { Hono } from "hono"
+import type { HttpBindings } from "@hono/node-server"
+import { createHonoListener } from "./hono.ts"
 import FormData from "form-data"
 import crypto from "node:crypto"
+import http from "node:http"
 import { once } from "node:events"
 import fs from "node:fs"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
@@ -243,15 +247,16 @@ describe("S3rver", () => {
 		})
 	})
 
-	it("can be mounted on a subpath in an Express app", async function () {
+	it("can be mounted on a subpath in a Hono app", async function () {
 		const s3rver = new S3rver({
 			configureBuckets: [{ name: "bucket-a" }, { name: "bucket-b" }],
 		})
 		await s3rver.configureBuckets()
 
-		const app = express()
-		app.use("/basepath", s3rver.getMiddleware())
-		const httpServer = app.listen(0)
+		const app = new Hono<{ Bindings: HttpBindings }>()
+		app.get("/health", (context) => context.text("healthy"))
+		app.use("/basepath/*", s3rver.getHonoMiddleware("/basepath"))
+		const httpServer = http.createServer(createHonoListener(app)).listen(0)
 		await once(httpServer, "listening")
 
 		try {
@@ -271,6 +276,31 @@ describe("S3rver", () => {
 				Key: "text",
 				Body: "Hello!",
 			})
+			const rootResponse = await request(
+				`http://localhost:${port}/basepath?ignored=1`,
+			)
+			expect(rootResponse.statusCode).to.equal(200)
+			expect(rootResponse.body).to.contain("bucket-a")
+			const health = await request(`http://localhost:${port}/health`)
+			expect(health.body).to.equal("healthy")
+
+			const bytes = Buffer.alloc(256 * 1024, 0xff)
+			const form = new FormData()
+			form.append("key", "posted")
+			form.append("file", bytes, "binary.dat")
+			const posted = await request.post(
+				`http://localhost:${port}/basepath/bucket-a`,
+				{
+					body: form,
+					headers: form.getHeaders(),
+				},
+			)
+			expect(posted.statusCode).to.equal(204)
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "posted",
+			})
+			expect(await readBody(object.Body)).to.deep.equal(bytes)
 		} finally {
 			httpServer.close()
 			await once(httpServer, "close")

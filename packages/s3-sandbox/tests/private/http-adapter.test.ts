@@ -4,6 +4,9 @@ import { Socket } from "node:net"
 import { Readable } from "node:stream"
 import { setImmediate } from "node:timers/promises"
 import aws4 from "aws4"
+import { Hono } from "hono"
+import type { HttpBindings } from "@hono/node-server"
+import { createHonoListener } from "../public/hono.ts"
 import S3Sandbox from "../../src/s3rver.ts"
 import { S3HttpContext } from "../../src/http-context.ts"
 import { createServerAndClient } from "../public/helpers.ts"
@@ -63,20 +66,45 @@ describe("Hono Node adapter", () => {
 		new S3Sandbox({ silent: true }).callback()
 		expect([globalThis.Request, globalThis.Response]).toEqual(constructors)
 	})
-	it.each(["folder/../key", "double//key", "unicode-%E2%98%83"])(
-		"preserves raw signed path %s through uploads and downloads",
-		async (key) => {
+	it.each(
+		["folder/../key", "double//key", "unicode-%E2%98%83"].flatMap((key) => [
+			{ key, mountPath: "" },
+			{ key, mountPath: "/basepath" },
+		]),
+	)(
+		"preserves raw signed path $key with mount $mountPath through uploads and downloads",
+		async ({ key, mountPath }) => {
 			const { s3rver } = await createServerAndClient({
 				configureBuckets: [{ name: "bucket-a" }],
 			})
+			if (mountPath) {
+				const app = new Hono<{ Bindings: HttpBindings }>()
+				app.use(mountPath + "/*", s3rver.getHonoMiddleware(mountPath))
+				s3rver.httpServer?.removeAllListeners("request")
+				s3rver.httpServer?.on("request", createHonoListener(app))
+			}
 			const address = s3rver.httpServer?.address()
 			if (!address || typeof address === "string")
 				throw new Error("Expected a TCP address")
+			if (mountPath) {
+				expect((await wire(address.port, mountPath, "GET")).status).toBe(200)
+				expect(
+					(await wire(address.port, `${mountPath}?ignored=1`, "GET")).status,
+				).toBe(200)
+			}
 			expect(
-				(await wire(address.port, `/bucket-a/${key}`, "PUT", "raw path"))
-					.status,
+				(
+					await wire(
+						address.port,
+						`${mountPath}/bucket-a/${key}`,
+						"PUT",
+						"raw path",
+					)
+				).status,
 			).toBe(200)
-			expect(await wire(address.port, `/bucket-a/${key}`, "GET")).toEqual({
+			expect(
+				await wire(address.port, `${mountPath}/bucket-a/${key}`, "GET"),
+			).toEqual({
 				status: 200,
 				body: "raw path",
 			})

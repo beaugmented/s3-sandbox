@@ -53,9 +53,32 @@ Use a dedicated existing directory for programmatic instances. Port `0` selects 
 | `allowMismatchedSignatures` | `false`                               | Accept well-formed requests with mismatched signatures. |
 | `configureBuckets`          | `[]`                                  | Bucket names and optional raw XML strings or buffers.   |
 
-`run(callback)` and `close(callback)` retain the callback forms and return the instance. `callback()` and its alias `getMiddleware()` return a handler suitable for `http.createServer()` or an Express mount. Call `configureBuckets()` before mounting a handler directly. `reset()` clears stored bucket data.
+`run(callback)` and `close(callback)` retain the callback forms and return the instance. `callback()` and its alias `getMiddleware()` return a handler suitable for `http.createServer()`. Call `configureBuckets()` before mounting a handler directly. `reset()` clears stored bucket data.
 
 The server uses Hono internally and extends Node's `EventEmitter`. Its public API is the S3 sandbox lifecycle and event API; HTTP framework inheritance and context customization are not supported.
+
+### Mount in Hono
+
+`getHonoMiddleware()` mounts the sandbox in a Hono app served by its Node adapter. Pass the same mount path used in the route, without a trailing slash; omit it when mounting at the root. The adapter supplies the raw Node request needed for S3 signing and streaming uploads.
+
+```ts
+import { Hono } from "hono"
+import { serve, type HttpBindings } from "@hono/node-server"
+
+await sandbox.configureBuckets()
+const app = new Hono<{ Bindings: HttpBindings }>()
+app.use("/s3/*", sandbox.getHonoMiddleware("/s3"))
+const server = serve({
+	fetch: app.fetch,
+	port: 4568,
+	overrideGlobalObjects: false,
+})
+// Use http://localhost:4568/s3 as the S3 client's endpoint.
+// Close the host server during cleanup; sandbox.run() was not called.
+await new Promise<void>((resolve, reject) =>
+	server.close((error) => (error ? reject(error) : resolve())),
+)
+```
 
 ## AWS SDK v3
 

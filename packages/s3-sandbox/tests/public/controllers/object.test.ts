@@ -21,7 +21,9 @@ import {
 } from "../helpers.ts"
 import S3rver from "../../../src/s3rver.ts"
 import type { HttpResponse } from "../http.ts"
-import express from "express"
+import { Hono } from "hono"
+import type { HttpBindings } from "@hono/node-server"
+import { createHonoListener } from "../hono.ts"
 import FormData from "form-data"
 import fs from "node:fs"
 import http from "node:http"
@@ -908,12 +910,12 @@ describe("Operations on Objects", () => {
 		})
 
 		it("stores and retrieves an object while mounted on a subpath", async function () {
-			const app = express()
-			app.use("/basepath", s3rver.getMiddleware())
+			const app = new Hono<{ Bindings: HttpBindings }>()
+			app.use("/basepath/*", s3rver.getHonoMiddleware("/basepath"))
 
 			const { httpServer } = s3rver
 			required(httpServer).removeAllListeners("request")
-			required(httpServer).on("request", app)
+			required(httpServer).on("request", createHonoListener(app))
 			setTestEndpoint(
 				s3Client,
 				`${s3Client.endpoint.protocol}//localhost:${s3Client.endpoint.port}/basepath`,
