@@ -1,5 +1,3 @@
-import { Router } from "@koa/router"
-
 import * as bucketCtrl from "./controllers/bucket.ts"
 import * as objectCtrl from "./controllers/object.ts"
 import * as serviceCtrl from "./controllers/service.ts"
@@ -8,9 +6,7 @@ import corsMiddleware from "./middleware/cors.ts"
 import responseHeaderOverrideMiddleware from "./middleware/response-header-override.ts"
 import websiteMiddleware from "./middleware/website.ts"
 import S3Error from "./models/error.ts"
-import { type S3Context, type S3State } from "./types.ts"
-
-const router = new Router<S3State, S3Context>()
+import { runMiddleware, type S3Context, type S3Middleware } from "./types.ts"
 
 // NOTE: The below is only an approximation of S3's behavior
 // For the most part, S3 will complain if you attempt a bucket method on an object, but
@@ -47,207 +43,245 @@ const queryMethod = (methods: string[]) =>
 		}
 	}
 
-router.all("/:bucket{/*key}", corsMiddleware())
-router.use("/:bucket{/*key}", websiteMiddleware())
-router.use("/{:bucket}{/*key}", authenticationMiddleware())
-router.use("/:bucket{/*key}", responseHeaderOverrideMiddleware())
+async function bucketPut(ctx: S3Context) {
+	if (ctx.params.queryMethod) {
+		await bucketCtrl.bucketExists(ctx)
+	}
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return bucketCtrl.putBucket(ctx)
+		case "cors":
+			return bucketCtrl.putBucketCors(ctx)
+		case "website":
+			return bucketCtrl.putBucketWebsite(ctx)
+		case "accelerate":
+		case "acl":
+		case "analytics":
+		case "encryption":
+		case "inventory":
+		case "lifecycle":
+		case "logging":
+		case "metrics":
+		case "notification":
+		case "policy":
+		case "publicAccessBlock":
+		case "replication":
+		case "requestPayment":
+		case "tagging":
+		case "versioning":
+			throw new S3Error(
+				"NotImplemented",
+				"A parameter you provided implies functionality that is not implemented",
+			)
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
+}
 
-router.get("/", serviceCtrl.getService)
+function bucketPost(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return objectCtrl.postObject(ctx)
+		case "delete":
+			return objectCtrl.deleteMultipleObjects(ctx)
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
 
-router
-	.use("/:bucket", queryMethod(bucketCtrl.METHODS))
-	.delete("/:bucket", bucketCtrl.bucketExists, (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return bucketCtrl.deleteBucket(ctx)
-			case "cors":
-				return bucketCtrl.deleteBucketCors(ctx)
-			case "website":
-				return bucketCtrl.deleteBucketWebsite(ctx)
-			case "analysis":
-			case "encryption":
-			case "lifecycle":
-			case "publicAccessBlock":
-			case "metrics":
-			case "policy":
-			case "replication":
-			case "tagging":
-				throw new S3Error(
-					"NotImplemented",
-					"A parameter you provided implies functionality that is not implemented",
-				)
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
+	return undefined
+}
 
-		return undefined
-	})
-	.get("/:bucket", bucketCtrl.bucketExists, (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return bucketCtrl.getBucket(ctx)
-			case "cors":
-				return bucketCtrl.getBucketCors(ctx)
-			case "location":
-				return bucketCtrl.getBucketLocation(ctx)
-			case "website":
-				return bucketCtrl.getBucketWebsite(ctx)
-			case "acl":
-			case "analytics":
-			case "encryption":
-			case "inventory":
-			case "lifecycle":
-			case "logging":
-			case "metrics":
-			case "notification":
-			case "object-lock":
-			case "policyStatus":
-			case "publicAccessBlock":
-			case "replication":
-			case "requestPayment":
-			case "tagging":
-			case "uploads":
-			case "versioning":
-				throw new S3Error(
-					"NotImplemented",
-					"A parameter you provided implies functionality that is not implemented",
-				)
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
+function bucketGet(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return bucketCtrl.getBucket(ctx)
+		case "cors":
+			return bucketCtrl.getBucketCors(ctx)
+		case "location":
+			return bucketCtrl.getBucketLocation(ctx)
+		case "website":
+			return bucketCtrl.getBucketWebsite(ctx)
+		case "acl":
+		case "analytics":
+		case "encryption":
+		case "inventory":
+		case "lifecycle":
+		case "logging":
+		case "metrics":
+		case "notification":
+		case "object-lock":
+		case "policyStatus":
+		case "publicAccessBlock":
+		case "replication":
+		case "requestPayment":
+		case "tagging":
+		case "uploads":
+		case "versioning":
+			throw new S3Error(
+				"NotImplemented",
+				"A parameter you provided implies functionality that is not implemented",
+			)
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
 
-		return undefined
-	})
-	.post("/:bucket", bucketCtrl.bucketExists, (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return objectCtrl.postObject(ctx)
-			case "delete":
-				return objectCtrl.deleteMultipleObjects(ctx)
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
+	return undefined
+}
 
-		return undefined
-	})
-	.put("/:bucket", async (ctx: S3Context) => {
-		if (ctx.params.queryMethod) {
-			await bucketCtrl.bucketExists(ctx)
-		}
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return bucketCtrl.putBucket(ctx)
-			case "cors":
-				return bucketCtrl.putBucketCors(ctx)
-			case "website":
-				return bucketCtrl.putBucketWebsite(ctx)
-			case "accelerate":
-			case "acl":
-			case "analytics":
-			case "encryption":
-			case "inventory":
-			case "lifecycle":
-			case "logging":
-			case "metrics":
-			case "notification":
-			case "policy":
-			case "publicAccessBlock":
-			case "replication":
-			case "requestPayment":
-			case "tagging":
-			case "versioning":
-				throw new S3Error(
-					"NotImplemented",
-					"A parameter you provided implies functionality that is not implemented",
-				)
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
-	})
+function bucketDelete(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return bucketCtrl.deleteBucket(ctx)
+		case "cors":
+			return bucketCtrl.deleteBucketCors(ctx)
+		case "website":
+			return bucketCtrl.deleteBucketWebsite(ctx)
+		case "analysis":
+		case "encryption":
+		case "lifecycle":
+		case "publicAccessBlock":
+		case "metrics":
+		case "policy":
+		case "replication":
+		case "tagging":
+			throw new S3Error(
+				"NotImplemented",
+				"A parameter you provided implies functionality that is not implemented",
+			)
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
+
+	return undefined
+}
+
+function objectPut(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return "x-amz-copy-source" in ctx.s3Headers
+				? objectCtrl.putObjectCopy(ctx)
+				: objectCtrl.putObject(ctx)
+		case "uploadId":
+			return "x-amz-copy-source" in ctx.s3Headers
+				? objectCtrl.uploadPartCopy(ctx)
+				: objectCtrl.uploadPart(ctx)
+		case "tagging":
+			return objectCtrl.putObjectTagging(ctx)
+		case "acl":
+			throw new S3Error(
+				"NotImplemented",
+				"A parameter you provided implies functionality that is not implemented",
+			)
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
+
+	return undefined
+}
+
+function objectPost(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case "uploadId":
+			return objectCtrl.completeMultipartUpload(ctx)
+		case "uploads":
+			return objectCtrl.initiateMultipartUpload(ctx)
+		case undefined:
+		case "select":
+			throw new S3Error("NotImplemented")
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
+
+	return undefined
+}
+
+function objectGet(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return objectCtrl.getObject(ctx)
+		case "acl":
+			return objectCtrl.getObjectAcl(ctx)
+		case "tagging":
+			return objectCtrl.getObjectTagging(ctx)
+		case "legal-hold":
+		case "retention":
+		case "torrent":
+			throw new S3Error(
+				"NotImplemented",
+				"A parameter you provided implies functionality that is not implemented",
+			)
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
+
+	return undefined
+}
+
+function objectDelete(ctx: S3Context) {
+	switch (ctx.params.queryMethod) {
+		case undefined:
+			return objectCtrl.deleteObject(ctx)
+		case "tagging":
+			throw new S3Error("NotImplemented")
+		default:
+			ctx.state.methodIsNotAllowed = true
+	}
+
+	return undefined
+}
 
 const objectMethods = [
 	...new Set([...bucketCtrl.METHODS, ...objectCtrl.METHODS]),
 ].toSorted()
-router
-	.use("/:bucket/*key", bucketCtrl.bucketExists, queryMethod(objectMethods))
-	.delete("/:bucket/*key", (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return objectCtrl.deleteObject(ctx)
-			case "tagging":
-				throw new S3Error("NotImplemented")
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
+const authentication = authenticationMiddleware()
+const cors = corsMiddleware()
+const website = websiteMiddleware()
+const override = responseHeaderOverrideMiddleware()
+const bucketQuery = queryMethod(bucketCtrl.METHODS)
+const objectQuery = queryMethod(objectMethods)
+const bucketHandlers: Record<string, S3Middleware> = {
+	DELETE: bucketDelete,
+	GET: bucketGet,
+	HEAD: bucketGet,
+	POST: bucketPost,
+	PUT: bucketPut,
+}
+const objectHandlers: Record<string, S3Middleware> = {
+	DELETE: objectDelete,
+	GET: objectGet,
+	HEAD: objectGet,
+	POST: objectPost,
+	PUT: objectPut,
+}
 
-		return undefined
-	})
-	.get("/:bucket/*key", (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return objectCtrl.getObject(ctx)
-			case "acl":
-				return objectCtrl.getObjectAcl(ctx)
-			case "tagging":
-				return objectCtrl.getObjectTagging(ctx)
-			case "legal-hold":
-			case "retention":
-			case "torrent":
-				throw new S3Error(
-					"NotImplemented",
-					"A parameter you provided implies functionality that is not implemented",
-				)
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
-
-		return undefined
-	})
-	.post("/:bucket/*key", (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case "uploadId":
-				return objectCtrl.completeMultipartUpload(ctx)
-			case "uploads":
-				return objectCtrl.initiateMultipartUpload(ctx)
-			case undefined:
-			case "select":
-				throw new S3Error("NotImplemented")
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
-
-		return undefined
-	})
-	.put("/:bucket/*key", (ctx: S3Context) => {
-		switch (ctx.params.queryMethod) {
-			case undefined:
-				return "x-amz-copy-source" in ctx.s3Headers
-					? objectCtrl.putObjectCopy(ctx)
-					: objectCtrl.putObject(ctx)
-			case "uploadId":
-				return "x-amz-copy-source" in ctx.s3Headers
-					? objectCtrl.uploadPartCopy(ctx)
-					: objectCtrl.uploadPart(ctx)
-			case "tagging":
-				return objectCtrl.putObjectTagging(ctx)
-			case "acl":
-				throw new S3Error(
-					"NotImplemented",
-					"A parameter you provided implies functionality that is not implemented",
-				)
-			default:
-				ctx.state.methodIsNotAllowed = true
-		}
-
-		return undefined
-	})
-
-// append trailing slash to key when applicable
-router.param("key", (key, ctx: S3Context, next: () => Promise<unknown>) => {
-	if (key && ctx.path.endsWith("/")) {
-		ctx.params.key = key + "/"
+/** Dispatch S3 resources from the raw path, preserving escaped bytes for signatures. */
+export default async function route(ctx: S3Context): Promise<void> {
+	const match = /^\/([^/]+)(?:\/(.*))?$/.exec(ctx.path)
+	if (!match) {
+		await runMiddleware(ctx, [
+			authentication,
+			async () => {
+				if (ctx.path === "/" && ["GET", "HEAD"].includes(ctx.method))
+					await serviceCtrl.getService(ctx)
+			},
+		])
+		return
 	}
-	return next()
-})
-
-export default router
+	try {
+		ctx.params.bucket = decodeURIComponent(match[1] ?? "")
+		ctx.params.key = decodeURIComponent(match[2] ?? "")
+	} catch {
+		throw new S3Error("InvalidURI", "Could not parse the specified URI.")
+	}
+	const isObject = ctx.params.key !== ""
+	const handler = (isObject ? objectHandlers : bucketHandlers)[ctx.method]
+	const operation: S3Middleware = async () => {
+		if (isObject || (handler && ctx.method !== "PUT"))
+			await bucketCtrl.bucketExists(ctx)
+		await runMiddleware(ctx, [
+			isObject ? objectQuery : bucketQuery,
+			...(handler ? [handler] : []),
+		])
+	}
+	await runMiddleware(ctx, [cors, website, authentication, override, operation])
+}

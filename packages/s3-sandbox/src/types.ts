@@ -1,13 +1,6 @@
-import type Koa from "koa"
-import type { IncomingMessage } from "node:http"
-import type { SandboxLogger } from "./middleware/logger.ts"
-import type S3rver from "./s3rver.ts"
-import type FilesystemStore from "./stores/filesystem.ts"
 import type AWSAccount from "./models/account.ts"
 import type { S3WebsiteConfiguration } from "./models/config.ts"
-import type { Readable } from "node:stream"
-import type { XmlRecord } from "./xml-record.ts"
-import type S3Bucket from "./models/bucket.ts"
+import type { S3HttpContext } from "./http-context.ts"
 
 export type S3State = {
 	account?: AWSAccount
@@ -16,21 +9,22 @@ export type S3State = {
 	website?: Partial<S3WebsiteConfiguration>
 	methodIsNotAllowed?: boolean
 }
-export type S3Context = Koa.ParameterizedContext<
-	S3State,
-	{ store: FilesystemStore }
-> & {
-	app: S3rver
-	store: FilesystemStore
-	bucket?: S3Bucket
-	logger: SandboxLogger
-	params: { bucket: string; key: string; queryMethod?: string }
-	s3Query: Record<string, string>
-	s3Headers: Record<string, string>
-	request: Koa.Request & {
-		body: string | Readable | XmlRecord
-		redirect?: (url: string) => void
+export type S3Context = S3HttpContext
+export type S3Middleware = (
+	ctx: S3Context,
+	next: () => Promise<unknown>,
+) => unknown
+
+export async function runMiddleware(
+	ctx: S3Context,
+	handlers: readonly S3Middleware[],
+): Promise<void> {
+	let previous = -1
+	async function dispatch(index: number): Promise<void> {
+		if (index <= previous)
+			throw new Error("Middleware called next more than once")
+		previous = index
+		await handlers[index]?.(ctx, () => dispatch(index + 1))
 	}
-	req: IncomingMessage & { baseUrl?: string }
-	mountPath?: string
+	await dispatch(0)
 }

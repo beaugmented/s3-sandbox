@@ -55,6 +55,8 @@ Use a dedicated existing directory for programmatic instances. Port `0` selects 
 
 `run(callback)` and `close(callback)` retain the callback forms and return the instance. `callback()` and its alias `getMiddleware()` return a handler suitable for `http.createServer()` or an Express mount. Call `configureBuckets()` before mounting a handler directly. `reset()` clears stored bucket data.
 
+The server uses Hono internally and extends Node's `EventEmitter`. Its public API is the S3 sandbox lifecycle and event API; HTTP framework inheritance and context customization are not supported.
+
 ## AWS SDK v3
 
 Use `S3RVER` for both signing keys and enable path-style access:

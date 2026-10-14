@@ -26,7 +26,7 @@ export default defineConfig({
 				},
 			},
 			{
-				// Koa middleware factories intentionally create a handler per registration.
+				// S3 middleware factories intentionally create a handler per registration.
 				files: ["packages/s3-sandbox/src/middleware/*.ts"],
 				rules: { "unicorn/consistent-function-scoping": "off" },
 			},

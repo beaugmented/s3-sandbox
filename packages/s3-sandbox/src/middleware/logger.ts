@@ -25,7 +25,7 @@ export class SandboxLogger {
 }
 
 export default function loggerMiddleware(app: S3rver, silent: boolean) {
-	app.logger = app.context.logger = new SandboxLogger(silent)
+	app.logger = new SandboxLogger(silent)
 	return async (ctx: S3Context, next: () => Promise<unknown>) => {
 		const start = performance.now()
 		try {

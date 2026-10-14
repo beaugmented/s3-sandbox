@@ -1,6 +1,4 @@
 import { Readable } from "node:stream"
-import { asError } from "../error-tools.ts"
-import { format } from "node:util"
 import { STATUS_CODES } from "node:http"
 
 import { getObject } from "../controllers/object.ts"
@@ -11,7 +9,7 @@ const redirectStatuses = new Set([300, 301, 302, 303, 305, 307, 308])
 
 export default () =>
 	async function website(ctx: S3Context, next: () => Promise<unknown>) {
-		ctx.redirect = ctx.request.redirect = redirect
+		ctx.redirect = redirect
 
 		// validate an incoming website redirect location if one is set
 		if (ctx.get("x-amz-website-redirect-location")) {
@@ -42,15 +40,7 @@ export default () =>
 			return next()
 		}
 
-		// oxlint-disable-next-line unicorn/prefer-add-event-listener -- Koa exposes an error hook, not a DOM event.
-		ctx.onerror = (error: unknown) => {
-			// oxlint-disable-next-line promise/no-promise-in-callback -- Bridge the void Koa hook to async error-document lookup with rejection handling.
-			void onerror.call(ctx, error).catch((failure: unknown) => {
-				const normalized = asError(failure)
-				ctx.app.emit("error", normalized, ctx)
-				ctx.res.destroy(normalized)
-			})
-		}
+		ctx.handleError = (error: unknown) => onerror.call(ctx, error)
 		ctx.state.website = config || {}
 
 		// throw website-specific errors for requests to a .s3-website vhost
@@ -131,7 +121,7 @@ export default () =>
 				ctx.redirect(location)
 			}
 		} finally {
-			const objectRedirectLocation = ctx.response.get(
+			const objectRedirectLocation = ctx.getResponseHeader(
 				"x-amz-website-redirect-location",
 			)
 			if (objectRedirectLocation) {
@@ -146,17 +136,13 @@ export default () =>
 	}
 
 /**
- * Overrides Koa's redirect behavior with one more closely matching S3
+ * S3 website redirect behavior
  *
  * @param url
  */
 function redirect(this: S3Context, url: string): void {
 	// unset headers
-	const { res } = this
-	res
-		.getHeaderNames()
-		.filter((name) => !name.match(/^access-control-|vary|x-amz-/i))
-		.forEach((name) => res.removeHeader(name))
+	this.clearResponseHeaders()
 
 	this.set("Location", url)
 
@@ -175,43 +161,14 @@ function redirect(this: S3Context, url: string): void {
 }
 
 /**
- * Koa context.onerror handler modified to write a HTML-formatted response body
+ * S3 website error handler producing an HTML response
  * @param err
  */
 async function onerror(this: S3Context, err: unknown): Promise<void> {
-	// don't do anything if there is no error.
-	// this allows you to pass `this.onerror`
-	// to node-style callbacks.
-	if (err == null) return
-
-	const error: Error & { headerSent?: boolean } =
-		err instanceof Error ? err : new Error(format("non-error thrown: %j", err))
-
-	let headerSent = false
-	if (this.headerSent || !this.writable) {
-		headerSent = error.headerSent = true
-	}
-
-	// delegate
+	const error = err instanceof Error ? err : new Error(String(err))
 	this.app.emit("error", error, this)
-
-	// nothing we can do here other
-	// than delegate to the app-level
-	// handler and log.
-	if (headerSent) {
-		return
-	}
-
-	const { res } = this
-
 	const s3Error = error instanceof S3Error ? error : S3Error.fromError(error)
-
-	// first unset all headers
-	res
-		.getHeaderNames()
-		.filter((name) => !name.match(/^access-control-|vary|x-amz-/i))
-		.forEach((name) => res.removeHeader(name))
-
+	this.clearResponseHeaders()
 	// (the presence of x-amz-error-* headers needs additional research)
 	// this.set(s3Error.headers);
 
@@ -240,11 +197,10 @@ async function onerror(this: S3Context, err: unknown): Promise<void> {
 				object.content?.destroy()
 				this.status = 301
 				this.redirect(String(objectRedirectLocation))
-				res.end(this.body)
 			} else {
 				this.type = String(object.metadata["content-type"])
 				this.length = object.size
-				object.content?.pipe(res)
+				this.body = object.content
 			}
 			return
 		}
@@ -264,5 +220,5 @@ async function onerror(this: S3Context, err: unknown): Promise<void> {
 	const msg = s3Error.toHTML()
 	this.status = s3Error.status
 	this.length = Buffer.byteLength(msg)
-	res.end(msg)
+	this.body = msg
 }

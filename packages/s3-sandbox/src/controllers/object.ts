@@ -397,7 +397,7 @@ export async function postObject(ctx: S3Context) {
 			const location = new URL(successRedirect)
 			location.searchParams.append("bucket", object.bucket)
 			location.searchParams.append("key", object.key)
-			location.searchParams.append("etag", ctx.response.get("ETag"))
+			location.searchParams.append("etag", ctx.getResponseHeader("ETag"))
 			ctx.set("Location", location.href)
 		} else {
 			ctx.status = successStatus
@@ -412,7 +412,7 @@ export async function postObject(ctx: S3Context) {
 		if (ctx.status === 201) {
 			ctx.body = {
 				PostResponse: {
-					Location: ctx.response.get("Location"),
+					Location: ctx.getResponseHeader("Location"),
 					Bucket: object.bucket,
 					Key: object.key,
 					Etag: JSON.stringify(md5),

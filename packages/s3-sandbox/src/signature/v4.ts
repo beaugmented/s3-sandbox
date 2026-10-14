@@ -496,6 +496,6 @@ export function aws4SignatureBodyParser(ctx: S3Context): Readable {
 					),
 				)
 			: ctx.req
-	ctx.request.body = body
+	ctx.requestBody = body
 	return body
 }

@@ -125,7 +125,7 @@ export async function xmlBodyParser(ctx: S3Context): Promise<XmlRecord> {
 	const body = xmlParser.parse(xmlString, {
 		tagValueProcessor: (a) => he.decode(a),
 	})
-	ctx.request.body = body
+	ctx.requestBody = body
 	return body
 }
 
@@ -142,7 +142,7 @@ export async function utf8BodyParser(ctx: S3Context): Promise<string> {
 		req.on("end", () => resolve(payload))
 		req.on("error", reject)
 	})
-	ctx.request.body = body
+	ctx.requestBody = body
 	return body
 }
 

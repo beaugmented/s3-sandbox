@@ -14,7 +14,9 @@ export default defineConfig({
 			},
 			dts: { entry: ["src/s3rver.ts"], sourcemap: true },
 			// Native Temporal appears in the public storage API.
-			banner: { dts: '/// <reference lib="esnext.temporal" />' },
+			banner: {
+				dts: '/// <reference types="node" />\n/// <reference lib="esnext.temporal" />',
+			},
 			publint: true,
 		},
 	],

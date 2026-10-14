@@ -1,19 +1,21 @@
 import { protocolHeaders, protocolQuery } from "./protocol-request.ts"
-import * as he from "he"
-import Koa from "koa"
+import { Hono } from "hono"
+import { getRequestListener, type HttpBindings } from "@hono/node-server"
+import { EventEmitter } from "node:events"
+import { S3HttpContext } from "./http-context.ts"
+import { runMiddleware } from "./types.ts"
 import http, { type Server, type ServerOptions } from "node:http"
 import https, { type ServerOptions as TlsOptions } from "node:https"
 import type { AddressInfo } from "node:net"
 import os from "node:os"
 import path from "node:path"
-import { callbackify, format } from "node:util"
+import { callbackify } from "node:util"
 import loggerMiddleware, { type SandboxLogger } from "./middleware/logger.ts"
 import vhostMiddleware from "./middleware/vhost.ts"
 import { getConfigModel } from "./models/config.ts"
-import S3Error from "./models/error.ts"
-import router from "./routes.ts"
+import route from "./routes.ts"
 import FilesystemStore from "./stores/filesystem.ts"
-import type { S3Context, S3State } from "./types.ts"
+import type { S3Context } from "./types.ts"
 import * as xmlParser from "./xml.ts"
 
 export type BucketConfiguration = {
@@ -49,8 +51,8 @@ type Defaults = Required<
 export type RunCallback = (error: Error | null, address?: AddressInfo) => void
 export type CloseCallback = (error: Error | null) => void
 
-/** A local S3-compatible Koa application with a filesystem store. */
-export default class S3Sandbox extends Koa<S3State, S3Context> {
+/** A local S3-compatible server backed by Hono and a filesystem store. */
+export default class S3Sandbox extends EventEmitter {
 	static defaultOptions: Defaults = {
 		address: "localhost",
 		port: 4568,
@@ -63,6 +65,11 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 		configureBuckets: [],
 	}
 	declare logger: SandboxLogger
+	readonly silent: boolean
+	private readonly application = new Hono<{
+		Bindings: HttpBindings
+		Variables: { s3: S3Context }
+	}>()
 	readonly store: FilesystemStore
 	readonly serverOptions: S3SandboxOptions & { address: string; port: number }
 	readonly resetOnClose: boolean
@@ -73,8 +80,6 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 
 	constructor(options: S3SandboxOptions = {}) {
 		super()
-		// oxlint-disable-next-line unicorn/prefer-add-event-listener -- Koa exposes an error hook, not a DOM event.
-		this.context.onerror = onerror
 		const {
 			silent,
 			serviceEndpoint,
@@ -128,34 +133,33 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 		this.buckets = configureBuckets
 		this.resetOnClose = resetOnClose
 		this.allowMismatchedSignatures = allowMismatchedSignatures
-		this.store = this.context.store = new FilesystemStore(directory)
-		this.use(loggerMiddleware(this, silent))
-		const builder = new xmlParser.j2xParser({
-			ignoreAttributes: false,
-			attrNodeName: "@",
-			tagValueProcessor: (value) => he.escape(value),
-		})
-		this.use(async (ctx: S3Context, next: () => Promise<unknown>) => {
-			await next()
-			if (
-				ctx.body !== null &&
-				typeof ctx.body === "object" &&
-				(Object.getPrototypeOf(ctx.body) === Object.prototype ||
-					Object.getPrototypeOf(ctx.body) === null)
-			) {
-				ctx.type = "application/xml"
-				ctx.body =
-					'<?xml version="1.0" encoding="UTF-8"?>\n' + builder.parse(ctx.body)
-			}
-		})
-		this.use((ctx: S3Context, next: () => Promise<unknown>) => {
-			ctx.mountPath = ctx.mountPath || ctx.req.baseUrl || ""
+		this.store = new FilesystemStore(directory)
+		const logger = loggerMiddleware(this, silent)
+		const vhost = vhostMiddleware({ serviceEndpoint, vhostBuckets })
+		this.on("error", (error: Error) => this.logger.error(error.message))
+		this.application.use("*", async (context, next) => {
+			const ctx = new S3HttpContext(this, context.env.incoming)
+			context.set("s3", ctx)
 			ctx.s3Headers = protocolHeaders(ctx.headers)
 			ctx.s3Query = protocolQuery(ctx.query)
-			return next()
+			await runMiddleware(ctx, [
+				logger,
+				vhost,
+				async () => {
+					await next()
+				},
+			])
 		})
-		this.use(vhostMiddleware({ serviceEndpoint, vhostBuckets }))
-		this.use(router.routes())
+		this.application.all("*", async (context) => {
+			const ctx = context.get("s3")
+			await route(ctx)
+			return ctx.toResponse()
+		})
+		this.application.onError(async (error, context) => {
+			const ctx = context.get("s3")
+			await ctx.handleError(error)
+			return ctx.toResponse()
+		})
 	}
 
 	async configureBuckets(): Promise<void> {
@@ -201,6 +205,11 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 	reset(): void {
 		this.store.reset()
 	}
+	callback(): ReturnType<typeof getRequestListener> {
+		return getRequestListener(this.application.fetch, {
+			overrideGlobalObjects: false,
+		})
+	}
 	getMiddleware() {
 		return this.callback()
 	}
@@ -217,8 +226,13 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 				const { address, port, key, cert, pfx } = this.serverOptions
 				const handleRequest = this.callback()
 				const listener: http.RequestListener = (req, res) => {
-					// Koa catches middleware rejections and owns response completion.
-					void handleRequest(req, res)
+					// The Node adapter owns response completion and handles rejected requests.
+					void handleRequest(req, res).catch((error: unknown) => {
+						const failure =
+							error instanceof Error ? error : new Error(String(error))
+						this.emit("error", failure)
+						res.destroy(failure)
+					})
 				}
 				const server =
 					(key && cert) || pfx
@@ -268,26 +282,4 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 		}
 		return stop()
 	}
-}
-
-function onerror(this: S3Context, input: unknown): void {
-	if (input == null) return
-	const error =
-		input instanceof Error
-			? input
-			: new Error(format("non-error thrown: %j", input))
-	const sent = this.headerSent || !this.writable
-	if (sent) Object.assign(error, { headerSent: true })
-	this.app.emit("error", error, this)
-	if (sent) return
-	const s3Error = error instanceof S3Error ? error : S3Error.fromError(error)
-	this.res
-		.getHeaderNames()
-		.filter((name) => !/^access-control-|vary|x-amz-/i.test(name))
-		.forEach((name) => this.res.removeHeader(name))
-	const body = s3Error.toXML()
-	this.type = "application/xml"
-	this.status = s3Error.status
-	this.length = Buffer.byteLength(body)
-	this.res.end(body)
 }
