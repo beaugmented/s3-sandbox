@@ -2,7 +2,7 @@
 
 A local S3-compatible server for development and isolated tests, derived from [S3rver](https://github.com/jamhall/s3rver). Requires Node 26.11.1 and ESM.
 
-This fork is maintained by [beaugmented](https://github.com/beaugmented). Please report issues and request support in [this repository](https://github.com/beaugmented/s3-sandbox/issues).
+This fork is maintained by [Augmented](https://github.com/beaugmented). Please report issues and request support in [this repository](https://github.com/beaugmented/s3-sandbox/issues).
 
 ## Install and run
 

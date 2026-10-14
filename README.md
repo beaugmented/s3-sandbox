@@ -4,7 +4,7 @@ A local S3-compatible server for development and tests, preparing its first rele
 
 The publishable package lives in [packages/s3-sandbox](packages/s3-sandbox). See its [README](packages/s3-sandbox/README.md) for the API, CLI, supported operations, and SDK configuration.
 
-This fork is maintained by [beaugmented](https://github.com/beaugmented). Please report issues and request support in [this repository](https://github.com/beaugmented/s3-sandbox/issues).
+This fork is maintained by [Augmented](https://github.com/beaugmented). Please report issues and request support in [this repository](https://github.com/beaugmented/s3-sandbox/issues).
 
 ## Contributing
 
