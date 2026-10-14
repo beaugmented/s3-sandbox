@@ -139,9 +139,12 @@ const running: Promise<import('node:net').AddressInfo> = sandbox.run()
 const stopped: Promise<void> = sandbox.close()
 const middleware: ReturnType<S3Sandbox['callback']> = sandbox.getMiddleware()
 const honoMiddleware = sandbox.getHonoMiddleware('/s3')
-void [running, stopped, middleware, honoMiddleware]
+const bucketPath: string = sandbox.store.getBucketPath('bucket')
+void [running, stopped, middleware, honoMiddleware, bucketPath]
 // @ts-expect-error invalid option type must be rejected
 new S3Sandbox({ port: 'bad' })
+// @ts-expect-error store declarations must retain typed method arguments
+sandbox.store.getBucketPath(123)
 `,
 		)
 		pnpm(

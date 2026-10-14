@@ -10,7 +10,8 @@ export default defineConfig({
 			deps: {
 				neverBundle: true,
 				onlyBundle: [],
-				dts: { neverBundle: [/^[\w@]/] },
+				// Keep dependencies external without excluding Windows drive paths.
+				dts: { neverBundle: true },
 			},
 			dts: { entry: ["src/s3rver.ts"], sourcemap: true },
 			// Native Temporal appears in the public storage API.
