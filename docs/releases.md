@@ -2,7 +2,7 @@
 
 <!-- cspell:ignore XFEQFLC BXBVWS -->
 
-The first release is `@beaugmented/s3-sandbox@0.1.0`. The root is private; only `packages/s3-sandbox` is published. No npm publication has been performed as part of this cutover.
+The first release is `@beaugmented/s3-sandbox@0.1.0`. The root is private; only `packages/s3-sandbox` is published.
 
 Before publishing, run a frozen install, `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm cov`. Inspect the tarball and its installed CLI, module exports, declarations, XML examples, license, and documentation. The ordinary public suite performs the installed-package checks.
 
@@ -14,7 +14,9 @@ The release workflow uses a GitHub App token to create version pull requests and
 
 Claiming a new npm name requires an authorized initial publication. Run `pnpm release:publish` with the account allowed to create packages in the `@beaugmented` scope when the package is ready; then configure trusted publishing for subsequent automated releases. Run `pnpm release:version` only when preparing a version change; `0.1.0` is already the initial package version.
 
-The release workflow is manually dispatched so pushing the modernization does not claim the name automatically. After the initial publication and publisher configuration, it can be enabled on pushes to `main` to follow lasertag's continuous release convention.
+The release workflow runs on every push to `main`, following lasertag's continuous release convention. Pending changesets create or update a version pull request. After that pull request is merged, the workflow builds and publishes unpublished package versions and creates scoped release tags. Configure the npm trusted publisher after the initial publication and before enabling subsequent automated releases.
+
+The Check and Test workflows validate pull requests independently. Release uses the shared frozen-install setup and calls `pnpm release:version` or `pnpm release:publish` through Changesets, without repeating those validation jobs.
 
 ## Dependency maintenance
 
