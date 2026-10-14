@@ -7,6 +7,7 @@
 - `fmt` writes formatting; `check` aggregates `check:*` validators; `test` runs once. Coverage commands use `cov`. Keep scripts, CI, and documentation aligned.
 - Treat `packages/s3-sandbox/tests/public/` as the consumer contract, including its helpers and fixtures. Keep implementation mechanics in `tests/private/`. Preserve assertions when migrating tooling.
 - Keep filesystem suffixes compatible with inherited S3rver data. Use unique temporary directories for tests and close every server.
+- Maintain the owned multipart parser in `packages/s3-sandbox/src/multipart/` with its framing, backpressure, and cancellation tests. Preserve and ship its MIT attribution in NOTICE and LICENSES/busboy-MIT.txt.
 - Before 1.0, use patch changesets for compatible features and fixes, and minor changesets for breaking changes. Keep each changeset body on one line. The first release is `0.1.0` under `@beaugmented/s3-sandbox`.
 - Use the target Vite Plus release's official `vp migrate --no-interactive` for upgrades. Preserve the previous lockfile until migration runs; review its findings and run formatting, checks, tests, and package validation.
 - Runtime dependencies must be declared explicitly and pinned. Preserve the inherited MIT notices and attribution.

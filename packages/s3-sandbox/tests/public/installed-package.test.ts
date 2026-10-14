@@ -116,6 +116,9 @@ try {
 		expect(
 			readFileSync(path.join(installed, "LICENSES/MIT.txt"), "utf8"),
 		).toContain("Copyright (c) 2015 Jamie Hall")
+		expect(
+			readFileSync(path.join(installed, "LICENSES/busboy-MIT.txt"), "utf8"),
+		).toContain("Copyright Brian White")
 		expect(metadata.license).toBe("MPL-2.0")
 		expect(readFileSync(path.join(installed, "README.md"), "utf8")).toContain(
 			"@beaugmented/s3-sandbox",

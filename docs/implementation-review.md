@@ -27,9 +27,19 @@ The ISO brand constructor asserts the canonical UTC millisecond string produced 
 
 ## HTTP framework boundary
 
-Hono owns request dispatch and error responses through its Node adapter, with global Request/Response replacement disabled. The S3 protocol context uses the raw Node URL and Express mount path for canonical signing and resource dispatch, avoiding Fetch URL normalization of object keys. Busboy still streams multipart uploads; responses bridge Node byte streams to Fetch with flow control and cancellation. Bucket configuration controls CORS and website behavior. Website error-document lookup completes before the response starts.
+Hono owns request dispatch and error responses through its Node adapter, with global Request/Response replacement disabled. The S3 protocol context uses the raw Node URL and Express mount path for canonical signing and resource dispatch, avoiding Fetch URL normalization of object keys. The owned multipart parser streams uploads; responses bridge Node byte streams to Fetch with flow control and cancellation. Bucket configuration controls CORS and website behavior. Website error-document lookup completes before the response starts.
 
 S3Sandbox extends EventEmitter rather than an HTTP framework. Its lifecycle, callback handlers, events, and filesystem layout remain compatible. Inherited Koa application methods and context customization are removed before the first release.
+
+## Owned multipart parsing
+
+`src/multipart/` absorbs the multipart-only implementation from Busboy 1.6.0 and its streaming byte matcher from StreamSearch 1.1.0. The code is erasable TypeScript under the same strict checks as the rest of the implementation. No external multipart parser or separate parser typings remain. NOTICE identifies the inherited portions and LICENSES/busboy-MIT.txt preserves Brian White's MIT notice in the repository and published package.
+
+The existing S3 POST assertions remain. New tests cover every two-chunk split and single-byte delivery of headers, binary payloads, and closing boundaries; malformed headers and premature EOF; file backpressure; and cancellation. File parts named `file` always stream, including filename-less binary uploads, preventing text decoding and the inherited one-megabyte text-field truncation from corrupting uploaded objects. Request errors and aborts destroy the parser, which closes the active file; upload events wait for parsing to finish.
+
+Two evaluated replacements failed independent framing probes: Multipasta 0.2.8 rejected a closing delimiter split between its final hyphens, and @fastify/busboy 3.2.3 lost file bytes when the header terminator crossed a chunk boundary. The absorbed implementation passes those probes. Revisit replacements against these regression tests rather than publication dates alone.
+
+The inherited one-megabyte limit and truncation behavior still apply to ordinary text fields. A payload line beginning with the boundary prefix can terminate a file even when its delimiter suffix is invalid; this inherited framing behavior still needs a compatibility decision and focused correction. Atomic storage of uploads, rejection of multiple file parts, and validation of POST policy fields also remain separate decisions; the current contract stores the first file and ignores subsequent fields.
 
 ## Test client boundary
 

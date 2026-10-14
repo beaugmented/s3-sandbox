@@ -86,6 +86,8 @@ The checksum settings select the S3 behavior currently implemented by the sandbo
 
 This is a partial S3 implementation intended for local development and tests. Unsupported operations return S3-shaped errors.
 
+For multipart POST uploads, submit `key`, metadata, and response-control fields before the `file` part. File contents stream to storage even when the part has no filename. The server stores the first file and ignores later form fields.
+
 ## Bucket configuration and websites
 
 Resolve bundled XML examples through their package exports:
@@ -130,3 +132,5 @@ PUT, POST, COPY, and DELETE operations emit notifications following the [S3 even
 ## License and attribution
 
 This fork is licensed under [MPL-2.0](LICENSE). It derives from Jamie Hall's S3rver; [NOTICE](NOTICE) identifies the inherited material and its original [MIT notice](LICENSES/MIT.txt). The upstream filesystem suffixes are preserved.
+
+The absorbed multipart implementation also retains Brian White's [MIT notice](LICENSES/busboy-MIT.txt).

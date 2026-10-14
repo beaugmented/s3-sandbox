@@ -84,6 +84,11 @@
 		"yyyy",
 		"nvalid",
 		"preconfigures",
-		"hostnames"
+		"hostnames",
+		"backpressure",
+		"Multipasta",
+		"streamsearch",
+		"Hongli",
+		"Horspool"
 	]
 }

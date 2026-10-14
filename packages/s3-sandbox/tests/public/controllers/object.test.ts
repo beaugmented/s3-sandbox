@@ -411,6 +411,32 @@ describe("Operations on Objects", () => {
 			expect((await readBody(object.Body)).toString()).to.equal("Hello!")
 		})
 
+		it("streams binary file parts without filenames beyond the text-field limit", async () => {
+			const boundary = "s3-upload-boundary"
+			const bytes = Buffer.alloc(2 * 1024 * 1024, 255)
+			const body = Buffer.concat([
+				Buffer.from(
+					`--${boundary}\r\nContent-Disposition: form-data; name="key"\r\n\r\nraw-file\r\n--${boundary}\r\nContent-Disposition: form-data; name="file"\r\n\r\n`,
+				),
+				bytes,
+				Buffer.from(`\r\n--${boundary}--\r\n`),
+			])
+			const res = await request.post("bucket-a", {
+				baseUrl: s3Client.endpoint.href,
+				body,
+				headers: {
+					"content-type": `multipart/form-data; boundary=${boundary}`,
+				},
+			})
+			expect(res.statusCode).to.equal(204)
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "raw-file",
+			})
+			expect(object.ContentLength).to.equal(bytes.length)
+			expect(await readBody(object.Body)).to.deep.equal(bytes)
+		})
+
 		it("stores a text object with a content-type", async function () {
 			const form = new FormData()
 			form.append("key", "text")
@@ -705,6 +731,39 @@ describe("Operations on Objects", () => {
 			expect(res.body).to.contain(
 				"<ArgumentName>file</ArgumentName><ArgumentValue>0</ArgumentValue>",
 			)
+		})
+
+		it("stores the first file when multiple file parts are submitted", async () => {
+			const form = new FormData()
+			form.append("key", "first-file")
+			form.append("file", "first", "first.txt")
+			form.append("file", "second", "second.txt")
+			const res = await request.post("bucket-a", {
+				baseUrl: s3Client.endpoint.href,
+				body: form,
+				headers: form.getHeaders(),
+			})
+			expect(res.statusCode).to.equal(204)
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "first-file",
+			})
+			expect((await readBody(object.Body)).toString()).to.equal("first")
+		})
+
+		it("requires the key field before the file part", async () => {
+			const form = new FormData()
+			form.append("file", "Hello!", "first.txt")
+			form.append("key", "too-late")
+			const result = await request
+				.post("bucket-a", {
+					baseUrl: s3Client.endpoint.href,
+					body: form,
+					headers: form.getHeaders(),
+				})
+				.catch(errorResponse)
+			expect(result.statusCode).to.equal(400)
+			expect(result.body).to.contain("please check the order of the fields")
 		})
 	})
 

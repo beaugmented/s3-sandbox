@@ -1,7 +1,8 @@
 import { deleteKeys, uploadParts } from "../protocol-xml.ts"
 import type { Readable } from "node:stream"
 import { iso8601FromInstant, isoNow, parseDate } from "../temporal-tools.ts"
-import Busboy from "busboy"
+import { createMultipartParser } from "../multipart/parser.ts"
+import { asError } from "../error-tools.ts"
 import crypto from "node:crypto"
 import { once } from "node:events"
 import { URL } from "node:url"
@@ -252,13 +253,24 @@ export async function postObject(ctx: S3Context) {
 			},
 		)
 	}
+	let activeParser: ReturnType<typeof createMultipartParser> | undefined
 	try {
 		let successRedirect: string | undefined
 		let successStatus = 204
 		let fileCount = 0
 
-		const busboy = Busboy({ headers: ctx.s3Headers })
-		const finishedPromise = once(busboy, "finish")
+		const parser = createMultipartParser(ctx.s3Headers)
+		activeParser = parser
+		const onRequestError = (error: unknown) => parser.destroy(asError(error))
+		const onAborted = () => parser.destroy(new Error("Upload request aborted"))
+		ctx.req.once("error", onRequestError)
+		ctx.req.once("aborted", onAborted)
+		ctx.req.once("close", () => {
+			ctx.req.off("error", onRequestError)
+			ctx.req.off("aborted", onAborted)
+		})
+		parser.once("close", () => ctx.req.unpipe(parser))
+		const finishedPromise = once(parser, "finish")
 		const object = await Promise.race([
 			finishedPromise.then(() => null),
 			new Promise<S3Object>((resolve, reject) => {
@@ -266,20 +278,22 @@ export async function postObject(ctx: S3Context) {
 				const metadata: Record<string, string> = {}
 
 				const errorHandler = (err: unknown) => {
-					busboy.off("field", fieldHandler)
-					busboy.off("file", fileHandler)
+					parser.off("field", fieldHandler)
+					parser.off("file", fileHandler)
 					reject(err)
 				}
 				const fieldHandler = (fieldname: string, value: string) => {
-					if (fieldname === "file") {
-						// busboy will identify parts as fields if they both lack a filename
-						// and have a content-type other than application/octet-stream
-						const file = Buffer.from(value)
-						fileCount++
-						resolve(new S3Object(ctx.params.bucket, key!, file, metadata))
-					}
 					if (fileCount) {
-						// ignore everything submitted after the first 'file' field
+						// Ignore all text fields submitted after the first file part.
+						return
+					}
+					if (typeof fieldname !== "string" || typeof value !== "string") {
+						parser.destroy(
+							new S3Error(
+								"MalformedPOSTRequest",
+								"Invalid multipart field name or encoding",
+							),
+						)
 						return
 					}
 					switch (fieldname) {
@@ -313,6 +327,7 @@ export async function postObject(ctx: S3Context) {
 					}
 				}
 				const fileHandler = (fieldname: string, file: Readable) => {
+					file.on("error", errorHandler)
 					if (fieldname !== "file" || fileCount++) {
 						return file.resume()
 					}
@@ -321,11 +336,11 @@ export async function postObject(ctx: S3Context) {
 					return undefined
 				}
 
-				busboy.once("error", errorHandler)
-				busboy.on("field", fieldHandler)
-				busboy.on("file", fileHandler)
+				parser.on("error", errorHandler)
+				parser.on("field", fieldHandler)
+				parser.on("file", fileHandler)
 
-				ctx.req.pipe(busboy)
+				ctx.req.pipe(parser)
 			}),
 		])
 
@@ -364,6 +379,7 @@ export async function postObject(ctx: S3Context) {
 		}
 
 		const { md5, size } = await ctx.store.putObject(object)
+		await finishedPromise
 		ctx.logger.info(
 			'Stored object "%s" in bucket "%s" successfully',
 			object.key,
@@ -377,8 +393,6 @@ export async function postObject(ctx: S3Context) {
 				etag: JSON.stringify(md5),
 			}),
 		})
-
-		await finishedPromise
 
 		if (fileCount > 1) {
 			ctx.logger.warn(
@@ -423,6 +437,7 @@ export async function postObject(ctx: S3Context) {
 			ctx.type = ""
 		}
 	} catch (err: unknown) {
+		activeParser?.destroy(asError(err))
 		ctx.logger.error(
 			'Error uploading object to bucket "%s"',
 			ctx.params.bucket,

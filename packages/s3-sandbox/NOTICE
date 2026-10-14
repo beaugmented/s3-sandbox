@@ -23,3 +23,14 @@ The upstream material was distributed under the MIT license. Its original
 copyright, permission notice, and warranty disclaimer are preserved verbatim
 in LICENSES/MIT.txt and continue to apply to those inherited portions.
 The fork's MPL-2.0 licensing does not replace the upstream MIT grant.
+
+Absorbed multipart implementation
+---------------------------------
+
+packages/s3-sandbox/src/multipart/parser.ts and parameters.ts are adapted
+from Brian White's busboy 1.6.0. byte-matcher.ts is adapted from Brian White's
+streamsearch 1.1.0, which credits Hongli Lai's streaming search algorithm.
+
+The original MIT copyright, permission notice, and warranty disclaimer for
+these portions are preserved in LICENSES/busboy-MIT.txt. The fork's MPL-2.0
+licensing does not replace that MIT grant.
