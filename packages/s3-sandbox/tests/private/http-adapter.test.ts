@@ -3,6 +3,7 @@ import http from "node:http"
 import { Socket } from "node:net"
 import { Readable } from "node:stream"
 import { setImmediate } from "node:timers/promises"
+import { runInNewContext } from "node:vm"
 import { signRawRequest } from "../public/signing.ts"
 import { Hono } from "hono"
 import type { HttpBindings } from "@hono/node-server"
@@ -135,6 +136,62 @@ describe("Hono Node adapter", () => {
 			true,
 		)
 	})
+	it("streams byte chunks created in another JavaScript realm", async () => {
+		const chunk: unknown = runInNewContext(
+			"new Uint8Array([104, 101, 108, 108, 111])",
+		)
+		expect(chunk instanceof Uint8Array).toBe(false)
+		const ctx = new S3HttpContext(
+			new S3Sandbox({ silent: true }),
+			new http.IncomingMessage(new Socket()),
+		)
+		ctx.body = Readable.from([chunk, Buffer.from(" world")])
+		expect(await ctx.toResponse().text()).toBe("hello world")
+	})
+	it("applies byte backpressure and cancellation to chunks from another realm", async () => {
+		const chunk: unknown = runInNewContext("new Uint8Array(64)")
+		let chunks = 0
+		const source = new Readable({
+			objectMode: true,
+			highWaterMark: 64,
+			read() {
+				chunks++
+				this.push(chunk)
+			},
+		})
+		const closed = new Promise<void>((resolve) => source.once("close", resolve))
+		const ctx = new S3HttpContext(
+			new S3Sandbox({ silent: true }),
+			new http.IncomingMessage(new Socket()),
+		)
+		ctx.body = source
+		const reader = ctx.toResponse().body?.getReader()
+		if (!reader) throw new Error("Expected a response stream")
+		try {
+			await setImmediate()
+			// One queued byte chunk and one pulled chunk beyond Node's object buffer.
+			expect(chunks).toBeLessThanOrEqual(66)
+			const result = await reader.read()
+			expect(result.value?.byteLength).toBe(64)
+		} finally {
+			await reader.cancel()
+			await closed
+		}
+		expect(source.destroyed).toBe(true)
+	})
+	it.each(["text", new Uint16Array([1, 2]), new DataView(new ArrayBuffer(2))])(
+		"rejects non-byte stream chunks (%s)",
+		async (chunk) => {
+			const ctx = new S3HttpContext(
+				new S3Sandbox({ silent: true }),
+				new http.IncomingMessage(new Socket()),
+			)
+			ctx.body = Readable.from([chunk])
+			await expect(ctx.toResponse().text()).rejects.toThrow(
+				"Expected a byte stream",
+			)
+		},
+	)
 	it("cancels the source stream when a Fetch consumer disconnects", async () => {
 		let chunks = 0
 		const source = new Readable({

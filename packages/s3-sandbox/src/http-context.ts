@@ -2,6 +2,7 @@ import { Readable } from "node:stream"
 import type { IncomingMessage } from "node:http"
 import { parse } from "node:querystring"
 import { TLSSocket } from "node:tls"
+import { types } from "node:util"
 import type S3Sandbox from "./s3rver.ts"
 import type { S3State } from "./types.ts"
 import type S3Bucket from "./models/bucket.ts"
@@ -213,7 +214,7 @@ function byteStream(body: Readable): ReadableStream<Uint8Array> {
 		strategy: {
 			highWaterMark: body.readableHighWaterMark,
 			size(chunk: unknown) {
-				return chunk instanceof Uint8Array ? chunk.byteLength : 1
+				return types.isUint8Array(chunk) ? chunk.byteLength : 1
 			},
 		},
 	}).getReader()
@@ -221,7 +222,7 @@ function byteStream(body: Readable): ReadableStream<Uint8Array> {
 		async pull(controller) {
 			const result = await reader.read()
 			if (result.done) controller.close()
-			else if (result.value instanceof Uint8Array)
+			else if (types.isUint8Array(result.value))
 				controller.enqueue(result.value)
 			else controller.error(new Error("Expected a byte stream"))
 		},
