@@ -1,5 +1,11 @@
 # @beaugmented/s3-sandbox
 
+## 0.1.2
+
+### Patch Changes
+
+- 1383d3c: Fix streamed object reads when byte chunks originate from another JavaScript realm.
+
 ## 0.1.1
 
 ### Patch Changes

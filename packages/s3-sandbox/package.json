@@ -1,6 +1,6 @@
 {
 	"name": "@beaugmented/s3-sandbox",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "A local S3-compatible server for isolated development and tests",
 	"keywords": [
 		"s3",
