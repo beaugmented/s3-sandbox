@@ -1,7 +1,7 @@
 import { asError } from "../../src/error-tools.ts"
 import { jsonObject } from "../../src/json.ts"
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test"
-import { execFileSync } from "node:child_process"
+import { execFileSync, spawnSync } from "node:child_process"
 import {
 	mkdtempSync,
 	readFileSync,
@@ -54,6 +54,23 @@ afterAll(() => {
 })
 
 describe("Installed package contract", () => {
+	it("reports CLI validation errors on stderr and exits with failure", () => {
+		const cli = path.join(
+			consumer,
+			"node_modules/@beaugmented/s3-sandbox/dist/cli.mjs",
+		)
+		const result = spawnSync(process.execPath, [cli], {
+			cwd: consumer,
+			encoding: "utf8",
+			timeout: 10000,
+		})
+		expect(result.error).toBeUndefined()
+		expect(result.status).toBe(1)
+		expect(result.stdout).toBe("")
+		expect(result.stderr.trim()).toBe(
+			"Missing required option: --directory <path>",
+		)
+	})
 	it("imports the root API, resolves fixtures, and runs a consumer server", () => {
 		const file = path.join(consumer, "consumer.ts")
 		writeFileSync(
