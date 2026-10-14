@@ -13,7 +13,7 @@ import {
 } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { Readable } from "node:stream"
-import aws4 from "aws4"
+import { StreamingRequestSigner } from "./signing.ts"
 import * as he from "he"
 import crypto from "node:crypto"
 import fs from "node:fs"
@@ -21,7 +21,6 @@ import os from "node:os"
 import path from "node:path"
 import pMap from "p-map"
 import * as xmlParser from "../../src/xml.ts"
-const { RequestSigner } = aws4
 
 import S3rver, { type S3SandboxOptions } from "../../src/s3rver.ts"
 
@@ -72,41 +71,6 @@ export async function createServerAndClient(options: S3SandboxOptions = {}) {
 }
 
 export { instances }
-
-export class StreamingRequestSigner extends RequestSigner {
-	declare previousSignature: string
-	declare chunkData: Buffer | undefined
-	prepareRequest() {
-		;(this.request.headers ??= {})["X-Amz-Content-Sha256"] =
-			"STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
-		return super.prepareRequest()
-	}
-
-	signature() {
-		this.previousSignature = super.signature()
-		this.chunkData = undefined
-		return this.previousSignature
-	}
-
-	signChunk(chunkData: Buffer | string) {
-		this.chunkData = Buffer.from(chunkData)
-		const chunkLengthHex = chunkData.length.toString(16)
-		return `${chunkLengthHex};chunk-signature=${this.signature()}`
-	}
-
-	stringToSign() {
-		return this.chunkData === undefined
-			? super.stringToSign()
-			: [
-					"AWS4-HMAC-SHA256-PAYLOAD",
-					this.getDateTime(),
-					this.credentialString(),
-					this.previousSignature,
-					hash("", "hex"),
-					hash(this.chunkData, "hex"),
-				].join("\n")
-	}
-}
 
 export const clients = new Set<TestS3Client>()
 
@@ -292,10 +256,6 @@ export function unquoteETag(value: string): string {
 	return z.string().parse(parsed)
 }
 
-function hash(string: string | Buffer, encoding: "hex"): string {
-	return crypto.createHash("sha256").update(string, "utf8").digest(encoding)
-}
-
 export function parseBucketListing(xml: string | Buffer) {
 	return z
 		.object({
@@ -327,13 +287,13 @@ export function createStreamingSigner(
 			method: "PUT",
 			protocol: client.endpoint.protocol,
 			hostname: client.endpoint.hostname,
-			port: client.endpoint.port,
+			port: Number(client.endpoint.port),
 			path:
 				client.endpoint.pathname +
 				`${requestOptions.Bucket}/${requestOptions.Key}`,
 			headers: {
 				"X-Amz-Decoded-Content-Length": chunks.reduce(
-					(length, chunk) => length + chunk.length,
+					(length, chunk) => length + Buffer.byteLength(chunk),
 					0,
 				),
 			},

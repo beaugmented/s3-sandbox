@@ -3,7 +3,7 @@ import http from "node:http"
 import { Socket } from "node:net"
 import { Readable } from "node:stream"
 import { setImmediate } from "node:timers/promises"
-import aws4 from "aws4"
+import { signRawRequest } from "../public/signing.ts"
 import { Hono } from "hono"
 import type { HttpBindings } from "@hono/node-server"
 import { createHonoListener } from "../public/hono.ts"
@@ -22,18 +22,15 @@ async function wire(
 		host: `localhost:${port}`,
 		"Content-Length": Buffer.byteLength(body),
 	}
-	const signed = aws4.sign(
-		{
-			host: `localhost:${port}`,
-			service: "s3",
-			region: "us-east-1",
-			method,
-			path,
-			headers: { ...headers },
-			body,
-		},
-		{ accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
-	)
+	const signed = await signRawRequest({
+		hostname: "localhost",
+		protocol: "http:",
+		port,
+		method,
+		path,
+		headers: { ...headers },
+		body,
+	})
 	return new Promise<{ status: number; body: string }>((resolve, reject) => {
 		const req = http.request(
 			{

@@ -991,7 +991,7 @@ describe("Operations on Objects", () => {
 					{ Bucket: "bucket-a", Key: "text" },
 					chunks,
 				)
-				const opts = signer.sign()
+				const opts = await signer.sign()
 				const req = http.request(opts)
 				for (const chunk of chunks) {
 					const signed = signer.signChunk(chunk)
@@ -1024,7 +1024,7 @@ describe("Operations on Objects", () => {
 					{ Bucket: "bucket-a", Key: "text" },
 					chunks,
 				)
-				const opts = signer.sign()
+				const opts = await signer.sign()
 				const req = http.request(opts)
 				for (const chunk of chunks) {
 					const signed = signer.signChunk(chunk)
@@ -1056,7 +1056,7 @@ describe("Operations on Objects", () => {
 					{ Bucket: "bucket-a", Key: "text" },
 					chunks,
 				)
-				const opts = signer.sign()
+				const opts = await signer.sign()
 				const req = http.request(opts)
 				for (const chunk of chunks) {
 					const signed = signer.signChunk(chunk)
@@ -1085,8 +1085,8 @@ describe("Operations on Objects", () => {
 					{ Bucket: "bucket-a", Key: "text" },
 					chunks,
 				)
-				delete signer.request.headers!["X-Amz-Decoded-Content-Length"]
-				const opts = signer.sign()
+				delete signer.request.headers["X-Amz-Decoded-Content-Length"]
+				const opts = await signer.sign()
 				const req = http.request(opts)
 				for (const chunk of chunks) {
 					const signed = signer.signChunk(chunk)
@@ -1115,9 +1115,9 @@ describe("Operations on Objects", () => {
 					{ Bucket: "bucket-a", Key: "text" },
 					chunks,
 				)
-				signer.request.headers!["X-Amz-Decoded-Content-Length"] =
-					Number(signer.request.headers!["X-Amz-Decoded-Content-Length"]) + 1
-				const opts = signer.sign()
+				signer.request.headers["X-Amz-Decoded-Content-Length"] =
+					Number(signer.request.headers["X-Amz-Decoded-Content-Length"]) + 1
+				const opts = await signer.sign()
 				const req = http.request(opts)
 				for (const chunk of chunks) {
 					const signed = signer.signChunk(chunk)
