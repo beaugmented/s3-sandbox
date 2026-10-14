@@ -1,5 +1,3 @@
-import { Temporal } from "@js-temporal/polyfill"
-
 /** UTC ISO 8601 timestamp with exactly three fractional digits, as in pack-os. */
 export type Iso8601 = string & { __brand: "ISO8601" }
 

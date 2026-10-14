@@ -1,6 +1,5 @@
 import { z } from "zod"
 import type { ObjectMetadata } from "../metadata.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import { isoNow } from "../temporal-tools.ts"
 import crypto from "node:crypto"
 

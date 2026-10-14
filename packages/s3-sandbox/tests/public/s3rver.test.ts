@@ -4,7 +4,6 @@ import {
 	generateTestObjects,
 } from "./helpers.ts"
 import { type TestS3Client } from "./helpers.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import AWS from "aws-sdk"
 import express from "express"
 import FormData from "form-data"

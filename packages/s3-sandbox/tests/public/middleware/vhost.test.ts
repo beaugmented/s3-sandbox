@@ -4,7 +4,6 @@ import {
 	required,
 	createServerAndClient,
 } from "../helpers.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import { describe, expect, it } from "vite-plus/test"
 
 import os from "node:os"

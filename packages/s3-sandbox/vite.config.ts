@@ -13,6 +13,8 @@ export default defineConfig({
 				dts: { neverBundle: [/^[\w@]/] },
 			},
 			dts: { entry: ["src/s3rver.ts"], sourcemap: true },
+			// Native Temporal appears in the public storage API.
+			banner: { dts: '/// <reference lib="esnext.temporal" />' },
 			publint: true,
 		},
 	],

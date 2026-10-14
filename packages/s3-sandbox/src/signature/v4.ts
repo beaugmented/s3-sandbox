@@ -2,7 +2,6 @@ import type { V4Request } from "./types.ts"
 import type { Readable, TransformCallback } from "node:stream"
 import { asError } from "../error-tools.ts"
 import type { Hash } from "node:crypto"
-import { Temporal } from "@js-temporal/polyfill"
 import { createHash, createHmac } from "node:crypto"
 import { Transform } from "node:stream"
 

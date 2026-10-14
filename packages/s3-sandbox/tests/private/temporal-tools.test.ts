@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vite-plus/test"
-import { Temporal } from "@js-temporal/polyfill"
 import {
 	instantFromISO8601,
 	iso8601FromInstant,

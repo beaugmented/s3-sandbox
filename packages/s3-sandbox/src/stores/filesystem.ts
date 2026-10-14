@@ -1,7 +1,6 @@
 import { parseMetadata, type ObjectMetadata } from "../metadata.ts"
 import { type TransformCallback, type Readable } from "node:stream"
 import { hasErrorCode } from "../error-tools.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import { iso8601FromInstant, toHttpDate } from "../temporal-tools.ts"
 import pick from "lodash/pick.js"
 import pickBy from "lodash/pickBy.js"

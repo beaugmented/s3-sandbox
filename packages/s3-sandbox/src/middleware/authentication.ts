@@ -1,5 +1,4 @@
 import type { AuthRequest, V2Request } from "../signature/types.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import mapKeys from "lodash/mapKeys.js"
 import pickBy from "lodash/pickBy.js"
 import { createHmac } from "node:crypto"

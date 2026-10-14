@@ -7,7 +7,6 @@ import {
 } from "../helpers.ts"
 import S3rver from "../../../src/s3rver.ts"
 import type { HttpResponse } from "../http.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import { toHttpDate } from "../../../src/temporal-tools.ts"
 import express from "express"
 import fs from "node:fs"

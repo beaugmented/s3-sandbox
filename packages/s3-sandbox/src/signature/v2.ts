@@ -1,5 +1,4 @@
 import type { V2Request } from "./types.ts"
-import { Temporal } from "@js-temporal/polyfill"
 import S3Error from "../models/error.ts"
 
 export function parseHeader(headers: Record<string, string>) {

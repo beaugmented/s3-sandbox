@@ -6,7 +6,8 @@
 		"erasableSyntaxOnly": true,
 		"exactOptionalPropertyTypes": true,
 		"lib": [
-			"ES2024",
+			"ES2025",
+			"ESNext.Temporal",
 			"DOM"
 		],
 		"module": "NodeNext",

@@ -2,6 +2,8 @@
 
 Oxlint runs through `vp lint` with correctness, suspicious-code, performance, promise, import, Node, and TypeScript rules. Type checking and type-aware linting are enabled. Explicit `any`, unsafe operations, ignored promises, and use of the legacy date global are rejected. Warnings and unused suppression comments fail `check:vp` and CI.
 
+Temporal uses Node 26's native implementation. Storage boundaries still use the branded UTC millisecond strings and protocol timestamp helpers. The declaration bundle includes the Temporal library reference so installed consumers receive its types.
+
 ## Deferred XML exception
 
 Paths beginning with `src/` in this review are relative to `packages/s3-sandbox/`.

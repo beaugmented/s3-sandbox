@@ -1,6 +1,5 @@
 import { deleteKeys, uploadParts } from "../protocol-xml.ts"
 import type { Readable } from "node:stream"
-import { Temporal } from "@js-temporal/polyfill"
 import { iso8601FromInstant, isoNow, parseDate } from "../temporal-tools.ts"
 import Busboy from "busboy"
 import crypto from "node:crypto"
