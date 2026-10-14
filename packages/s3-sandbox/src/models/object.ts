@@ -1,7 +1,5 @@
-import type { ObjectMetadata } from "../metadata.ts"
+import { selectMetadata, type ObjectMetadata } from "../metadata.ts"
 import { parseDate } from "../temporal-tools.ts"
-import pick from "lodash/pick.js"
-import pickBy from "lodash/pickBy.js"
 
 import { type Readable } from "node:stream"
 import S3Error from "./error.ts"
@@ -30,21 +28,18 @@ class S3Object<
 				)
 			}
 		}
-		this.metadata = pick(metadata, [
+		const allowed = [
 			...S3Object.ALLOWED_METADATA,
 
 			// intrinsic metadata determined when retrieving objects
 			"last-modified",
 			"etag",
 			"content-length",
-		])
+		]
+		this.metadata = selectMetadata(metadata, allowed)
 		if (!this.metadata["content-type"]) {
 			this.metadata["content-type"] = "binary/octet-stream"
 		}
-		Object.assign(
-			this.metadata,
-			pickBy(metadata, (_value, name) => name.startsWith("x-amz-meta-")),
-		)
 	}
 
 	get size() {

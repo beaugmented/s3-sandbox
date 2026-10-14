@@ -1,4 +1,3 @@
-import union from "lodash/union.js"
 import { Router } from "@koa/router"
 
 import * as bucketCtrl from "./controllers/bucket.ts"
@@ -166,7 +165,9 @@ router
 		}
 	})
 
-const objectMethods = union(bucketCtrl.METHODS, objectCtrl.METHODS).toSorted()
+const objectMethods = [
+	...new Set([...bucketCtrl.METHODS, ...objectCtrl.METHODS]),
+].toSorted()
 router
 	.use("/:bucket/*key", bucketCtrl.bucketExists, queryMethod(objectMethods))
 	.delete("/:bucket/*key", (ctx: S3Context) => {

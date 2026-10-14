@@ -2,7 +2,6 @@ import { z } from "zod"
 import { HttpError, type HttpResponse } from "./http.ts"
 import { createS3Event } from "../../src/models/event.ts"
 import type { ClientRequest, IncomingMessage } from "node:http"
-import times from "lodash/times.js"
 import AWS from "aws-sdk"
 import aws4 from "aws4"
 import * as he from "he"
@@ -31,7 +30,7 @@ export function generateTestObjects(
 	amount: number,
 ) {
 	const padding = amount.toString().length
-	const objects = times(amount, (i) => ({
+	const objects = Array.from({ length: amount }, (_, i) => ({
 		Bucket: bucket,
 		Key: "key" + i.toString().padStart(padding, "0"),
 		Body: "Hello!",

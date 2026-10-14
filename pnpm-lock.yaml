@@ -249,9 +249,6 @@ importers:
       koa:
         specifier: 3.2.1
         version: 3.2.1
-      lodash:
-        specifier: 4.18.1
-        version: 4.18.1
       statuses:
         specifier: 2.0.2
         version: 2.0.2
@@ -280,9 +277,6 @@ importers:
       '@types/he':
         specifier: 1.2.3
         version: 1.2.3
-      '@types/lodash':
-        specifier: 4.17.26
-        version: 4.17.26
       '@types/node':
         specifier: 26.6.5
         version: 26.6.5
@@ -1277,9 +1271,6 @@ packages:
 
   '@types/koa@3.0.3':
     resolution: {integrity: sha512-TdtNEJ7sYSrFQcVuS2ySsVqnq5EyE3oJbnfFJvkC9UtGP4Kpem5KE7r+ivHIbIAQAofSqnlB5D3vkfYO69TQpg==}
-
-  '@types/lodash@4.17.26':
-    resolution: {integrity: sha512-48NWfiY6oNcKOh47Z4h+sIvwcQR91h6KPhaYKgeMIrkT2jV82Gy90SErj60vW8jQbeMSOSbhIv3bZ7JoqPPVhA==}
 
   '@types/node@26.6.5':
     resolution: {integrity: sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg==}
@@ -2370,9 +2361,6 @@ packages:
   lightningcss@1.33.0:
     resolution: {integrity: sha512-WkUDrojuJs0xkgGf2udWxa3yGBRxPtxUkB79i6aCZLRgc7PM8fZe9TosfPDcvEpQZbuFASnHYmRLBLUbmLOIIA==}
     engines: {node: '>= 12.0.0'}
-
-  lodash@4.18.1:
-    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -3789,8 +3777,6 @@ snapshots:
       '@types/koa-compose': 3.2.9
       '@types/node': 26.6.5
 
-  '@types/lodash@4.17.26': {}
-
   '@types/node@26.6.5':
     dependencies:
       undici-types: 8.9.0
@@ -4750,8 +4736,6 @@ snapshots:
       lightningcss-linux-x64-musl: 1.33.0
       lightningcss-win32-arm64-msvc: 1.33.0
       lightningcss-win32-x64-msvc: 1.33.0
-
-  lodash@4.18.1: {}
 
   lz-string@1.5.0: {}
 

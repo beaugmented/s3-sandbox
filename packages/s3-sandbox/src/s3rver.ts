@@ -1,6 +1,4 @@
 import { protocolHeaders, protocolQuery } from "./protocol-request.ts"
-import defaults from "lodash/defaults.js"
-import isPlainObject from "lodash/isPlainObject.js"
 import * as he from "he"
 import Koa from "koa"
 import http, { type Server, type ServerOptions } from "node:http"
@@ -86,8 +84,45 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 			vhostBuckets,
 			configureBuckets,
 			...serverOptions
-		} = defaults({}, options, S3Sandbox.defaultOptions) as S3SandboxOptions &
-			Defaults
+		} = {
+			...options,
+			address:
+				options.address === undefined
+					? S3Sandbox.defaultOptions.address
+					: options.address,
+			port:
+				options.port === undefined
+					? S3Sandbox.defaultOptions.port
+					: options.port,
+			silent:
+				options.silent === undefined
+					? S3Sandbox.defaultOptions.silent
+					: options.silent,
+			serviceEndpoint:
+				options.serviceEndpoint === undefined
+					? S3Sandbox.defaultOptions.serviceEndpoint
+					: options.serviceEndpoint,
+			directory:
+				options.directory === undefined
+					? S3Sandbox.defaultOptions.directory
+					: options.directory,
+			resetOnClose:
+				options.resetOnClose === undefined
+					? S3Sandbox.defaultOptions.resetOnClose
+					: options.resetOnClose,
+			allowMismatchedSignatures:
+				options.allowMismatchedSignatures === undefined
+					? S3Sandbox.defaultOptions.allowMismatchedSignatures
+					: options.allowMismatchedSignatures,
+			vhostBuckets:
+				options.vhostBuckets === undefined
+					? S3Sandbox.defaultOptions.vhostBuckets
+					: options.vhostBuckets,
+			configureBuckets:
+				options.configureBuckets === undefined
+					? S3Sandbox.defaultOptions.configureBuckets
+					: options.configureBuckets,
+		}
 		this.silent = silent
 		this.serverOptions = serverOptions
 		this.buckets = configureBuckets
@@ -102,7 +137,12 @@ export default class S3Sandbox extends Koa<S3State, S3Context> {
 		})
 		this.use(async (ctx: S3Context, next: () => Promise<unknown>) => {
 			await next()
-			if (isPlainObject(ctx.body)) {
+			if (
+				ctx.body !== null &&
+				typeof ctx.body === "object" &&
+				(Object.getPrototypeOf(ctx.body) === Object.prototype ||
+					Object.getPrototypeOf(ctx.body) === null)
+			) {
 				ctx.type = "application/xml"
 				ctx.body =
 					'<?xml version="1.0" encoding="UTF-8"?>\n' + builder.parse(ctx.body)

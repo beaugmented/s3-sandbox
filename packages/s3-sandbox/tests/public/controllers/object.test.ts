@@ -19,8 +19,6 @@ import {
 } from "../helpers.ts"
 import S3rver from "../../../src/s3rver.ts"
 import type { HttpResponse } from "../http.ts"
-import find from "lodash/find.js"
-import times from "lodash/times.js"
 import express from "express"
 import FormData from "form-data"
 import fs from "node:fs"
@@ -66,13 +64,15 @@ describe("Operations on Objects", () => {
 
 		it("deletes 500 objects with deleteObjects", async function () {
 			await generateTestObjects(s3Client, "bucket-a", 500)
-			const deleteObj = { Objects: times(500, (i) => ({ Key: "key" + i })) }
+			const deleteObj = {
+				Objects: Array.from({ length: 500 }, (_, i) => ({ Key: "key" + i })),
+			}
 			const data = await s3Client
 				.deleteObjects({ Bucket: "bucket-a", Delete: deleteObj })
 				.promise()
 			expect(data.Deleted).to.exist
 			expect(data.Deleted).to.have.lengthOf(500)
-			expect(find(data.Deleted, { Key: "key67" })).to.exist
+			expect(data.Deleted?.find((object) => object.Key === "key67")).to.exist
 		})
 
 		it("reports invalid XML when using deleteObjects with zero objects", async function () {
@@ -98,7 +98,8 @@ describe("Operations on Objects", () => {
 				.promise()
 			expect(data.Deleted).to.exist
 			expect(data.Deleted).to.have.lengthOf(1)
-			expect(find(data.Deleted, { Key: "doesnotexist" })).to.exist
+			expect(data.Deleted?.find((object) => object.Key === "doesnotexist")).to
+				.exist
 		})
 	})
 
@@ -106,7 +107,7 @@ describe("Operations on Objects", () => {
 		it("deletes 500 objects", async function () {
 			await generateTestObjects(s3Client, "bucket-a", 500)
 			await pMap(
-				times(500),
+				Array.from({ length: 500 }, (_, i) => i),
 				(i) =>
 					s3Client
 						.deleteObject({ Bucket: "bucket-a", Key: "key" + i })

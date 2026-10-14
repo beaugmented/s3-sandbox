@@ -1,10 +1,11 @@
-import { parseMetadata, type ObjectMetadata } from "../metadata.ts"
+import {
+	parseMetadata,
+	selectMetadata,
+	type ObjectMetadata,
+} from "../metadata.ts"
 import { type TransformCallback, type Readable } from "node:stream"
 import { hasErrorCode } from "../error-tools.ts"
 import { iso8601FromInstant, toHttpDate } from "../temporal-tools.ts"
-import pick from "lodash/pick.js"
-import pickBy from "lodash/pickBy.js"
-import sortBy from "lodash/sortBy.js"
 import crypto from "node:crypto"
 import {
 	createReadStream,
@@ -119,10 +120,7 @@ class FilesystemStore {
 		const metadataPath = this.getResourcePath(bucket, key, "metadata.json")
 		const md5Path = this.getResourcePath(bucket, key, "object.md5")
 
-		const json = {
-			...pick(metadata, S3Object.ALLOWED_METADATA),
-			...pickBy(metadata, (_value, name) => name.startsWith("x-amz-meta-")),
-		}
+		const json = selectMetadata(metadata, S3Object.ALLOWED_METADATA)
 
 		if (md5) await fs.writeFile(md5Path, md5)
 		await fs.writeFile(metadataPath, JSON.stringify(json, null, 2))
@@ -493,9 +491,11 @@ class FilesystemStore {
 				.readFile(path.join(uploadDir, "metadata"))
 				.then((data) => parseMetadata(data.toString("utf8"))),
 		])
-		const partStreams = sortBy(parts, (part) => part.number).map((part) =>
-			createReadStream(path.join(uploadDir, part.number.toString())),
-		)
+		const partStreams = parts
+			.toSorted((a, b) => a.number - b.number)
+			.map((part) =>
+				createReadStream(path.join(uploadDir, part.number.toString())),
+			)
 		const object = new S3Object(
 			bucket,
 			key,

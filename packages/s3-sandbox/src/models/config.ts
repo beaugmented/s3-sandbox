@@ -1,5 +1,4 @@
 import type { XmlRecord } from "../xml-record.ts"
-import escapeRegExp from "lodash/escapeRegExp.js"
 import * as he from "he"
 import { asArray } from "../utils.ts"
 import * as xmlParser from "../xml.ts"
@@ -115,7 +114,10 @@ class S3CorsConfiguration extends S3ConfigBase {
 				"InvalidRequest",
 				`AllowedOrigin "${str}" can not have more than one wildcard.`,
 			)
-		return new RegExp(`^${parts.map(escapeRegExp).join(".*")}$`, flags)
+		return new RegExp(
+			`^${parts.map((part) => RegExp.escape(part)).join(".*")}$`,
+			flags,
+		)
 	}
 
 	constructor(config: string) {

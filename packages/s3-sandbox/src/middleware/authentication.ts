@@ -1,6 +1,4 @@
 import type { AuthRequest, V2Request } from "../signature/types.ts"
-import mapKeys from "lodash/mapKeys.js"
-import pickBy from "lodash/pickBy.js"
 import { createHmac } from "node:crypto"
 
 import AWSAccount from "../models/account.ts"
@@ -58,9 +56,10 @@ export default () =>
 			return next()
 		}
 
-		const amzQueryHeaders = pickBy(
-			mapKeys(ctx.s3Query, (_value, key) => key.toLowerCase()),
-			(_value, key) => key.startsWith("x-amz-"),
+		const amzQueryHeaders = Object.fromEntries(
+			Object.entries(ctx.s3Query)
+				.map(([key, value]) => [key.toLowerCase(), value] as const)
+				.filter(([key]) => key.startsWith("x-amz-")),
 		)
 		// x-amz-* values specified in query params take precedence over those in the headers
 		Object.assign(ctx.s3Headers, amzQueryHeaders)

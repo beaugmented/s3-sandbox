@@ -6,7 +6,6 @@ import {
 	createServerAndClient,
 	generateTestObjects,
 } from "../helpers.ts"
-import find from "lodash/find.js"
 import fs from "node:fs"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
 
@@ -160,9 +159,12 @@ describe("Operations on Buckets", () => {
 				.listObjects({ Bucket: "bucket-a", Prefix: "key" })
 				.promise()
 			expect(data.Contents).to.have.lengthOf(4)
-			expect(find(data.Contents, { Key: "akey1" })).to.not.exist
-			expect(find(data.Contents, { Key: "akey2" })).to.not.exist
-			expect(find(data.Contents, { Key: "akey3" })).to.not.exist
+			expect(data.Contents?.find((object) => object.Key === "akey1")).to.not
+				.exist
+			expect(data.Contents?.find((object) => object.Key === "akey2")).to.not
+				.exist
+			expect(data.Contents?.find((object) => object.Key === "akey3")).to.not
+				.exist
 		})
 
 		it("lists objects in a bucket starting after a marker", async function () {
@@ -244,9 +246,12 @@ describe("Operations on Buckets", () => {
 				.listObjectsV2({ Bucket: "bucket-a", Prefix: "key" })
 				.promise()
 			expect(data.Contents).to.have.lengthOf(4)
-			expect(find(data.Contents, { Key: "akey1" })).to.not.exist
-			expect(find(data.Contents, { Key: "akey2" })).to.not.exist
-			expect(find(data.Contents, { Key: "akey3" })).to.not.exist
+			expect(data.Contents?.find((object) => object.Key === "akey1")).to.not
+				.exist
+			expect(data.Contents?.find((object) => object.Key === "akey2")).to.not
+				.exist
+			expect(data.Contents?.find((object) => object.Key === "akey3")).to.not
+				.exist
 		})
 
 		it("lists objects in a bucket starting after a key", async function () {

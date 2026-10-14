@@ -1,4 +1,3 @@
-import omit from "lodash/omit.js"
 import * as he from "he"
 import { j2xParser } from "../xml.ts"
 import { asError } from "../error-tools.ts"
@@ -13,7 +12,7 @@ class S3Error extends Error {
 					? err.message
 					: "We encountered an internal error. Please try again.",
 			),
-			omit(err, "code", "message", "expose"),
+			errorProperties(err),
 		)
 	}
 
@@ -197,4 +196,20 @@ const s3Statuses: Record<string, number> = {
 
 function encode(value: unknown): string {
 	return he.encode(String(value), { useNamedReferences: true })
+}
+
+/** Preserve enumerable error details, including inherited fields. */
+function errorProperties(error: Error): Record<string, unknown> {
+	const properties: Record<string, unknown> = {}
+	for (const key in error) {
+		if (!["code", "message", "expose"].includes(key)) {
+			Object.defineProperty(properties, key, {
+				value: Reflect.get(error, key),
+				enumerable: true,
+				writable: true,
+				configurable: true,
+			})
+		}
+	}
+	return properties
 }

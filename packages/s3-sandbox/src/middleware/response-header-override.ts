@@ -1,5 +1,3 @@
-import isEmpty from "lodash/isEmpty.js"
-
 import S3Error from "../models/error.ts"
 import { type S3Context } from "../types.ts"
 import { capitalizeHeader } from "../utils.ts"
@@ -57,7 +55,7 @@ export default () =>
 		switch (ctx.method) {
 			case "HEAD":
 			case "GET":
-				if (!isEmpty(overrides) && !ctx.state.account) {
+				if (Object.keys(overrides).length > 0 && !ctx.state.account) {
 					throw new S3Error(
 						"InvalidRequest",
 						"Request specific response headers cannot be used for anonymous " +

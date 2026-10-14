@@ -1,4 +1,3 @@
-import escapeRegExp from "lodash/escapeRegExp.js"
 import { isIP } from "node:net"
 import { hostname } from "node:os"
 import { type S3Context } from "../types.ts"
@@ -15,7 +14,7 @@ export default ({
 }) =>
 	function vhost(ctx: S3Context, next: () => Promise<unknown>) {
 		const pattern = RegExp(
-			`^(?:(.+)\\.)?s3(-website)?([-.].+)?\\.${escapeRegExp(serviceEndpoint)}$`,
+			`^(?:(.+)\\.)?s3(-website)?([-.].+)?\\.${RegExp.escape(serviceEndpoint)}$`,
 		)
 		const [match, bucket, website] = pattern.exec(ctx.hostname) || []
 		ctx.state.vhost = Boolean(bucket)
