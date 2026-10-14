@@ -249,9 +249,6 @@ importers:
       koa:
         specifier: 3.2.1
         version: 3.2.1
-      statuses:
-        specifier: 2.0.2
-        version: 2.0.2
       takua:
         specifier: 0.2.3
         version: 0.2.3
@@ -280,9 +277,6 @@ importers:
       '@types/node':
         specifier: 26.6.5
         version: 26.6.5
-      '@types/statuses':
-        specifier: 2.0.6
-        version: 2.0.6
       aws-sdk:
         specifier: 2.1693.0
         version: 2.1693.0
@@ -1286,9 +1280,6 @@ packages:
 
   '@types/serve-static@2.2.0':
     resolution: {integrity: sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==}
-
-  '@types/statuses@2.0.6':
-    resolution: {integrity: sha512-xMAgYwceFhRA2zY+XbEA7mxYbA093wdiW8Vu6gZPGWy9cmOyU9XesH1tNcEWsKFd5Vzrqx5T3D38PWx1FIIXkA==}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
@@ -3793,8 +3784,6 @@ snapshots:
     dependencies:
       '@types/http-errors': 2.0.5
       '@types/node': 26.6.5
-
-  '@types/statuses@2.0.6': {}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true

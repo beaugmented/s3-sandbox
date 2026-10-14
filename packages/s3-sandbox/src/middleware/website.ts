@@ -1,11 +1,13 @@
 import { Readable } from "node:stream"
 import { asError } from "../error-tools.ts"
 import { format } from "node:util"
-import status from "statuses"
+import { STATUS_CODES } from "node:http"
 
 import { getObject } from "../controllers/object.ts"
 import S3Error from "../models/error.ts"
 import { type S3Context } from "../types.ts"
+
+const redirectStatuses = new Set([300, 301, 302, 303, 305, 307, 308])
 
 export default () =>
 	async function website(ctx: S3Context, next: () => Promise<unknown>) {
@@ -159,7 +161,7 @@ function redirect(this: S3Context, url: string): void {
 	this.set("Location", url)
 
 	// status
-	if (!status.redirect[this.status]) this.status = 302
+	if (!redirectStatuses.has(this.status)) this.status = 302
 
 	if (this.status === 302) {
 		const redirectError = new S3Error("Found", "Resource Found")
@@ -217,7 +219,7 @@ async function onerror(this: S3Context, err: unknown): Promise<void> {
 	this.type = "text/html"
 
 	if (!s3Error.description)
-		s3Error.description = `${s3Error.status} ${status.message[s3Error.status]}`
+		s3Error.description = `${s3Error.status} ${STATUS_CODES[s3Error.status]}`
 
 	// respond
 	const website = this.state.website ?? {}

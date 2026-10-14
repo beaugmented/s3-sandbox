@@ -69,7 +69,6 @@
 		"fast-xml-parser": "5.11.2",
 		"he": "2.0.0",
 		"koa": "3.2.1",
-		"statuses": "2.0.2",
 		"takua": "0.2.3",
 		"zod": "4.6.7"
 	},
@@ -81,7 +80,6 @@
 		"@types/express": "5.0.6",
 		"@types/he": "1.2.3",
 		"@types/node": "26.6.5",
-		"@types/statuses": "2.0.6",
 		"aws-sdk": "2.1693.0",
 		"aws4": "1.13.2",
 		"break-check": "0.8.2",
