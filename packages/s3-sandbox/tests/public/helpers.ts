@@ -2,7 +2,17 @@ import { z } from "zod"
 import { HttpError, type HttpResponse } from "./http.ts"
 import { createS3Event } from "../../src/models/event.ts"
 import type { ClientRequest, IncomingMessage } from "node:http"
-import AWS from "aws-sdk"
+import {
+	S3,
+	GetObjectCommand,
+	PutObjectCommand,
+	type S3ClientConfig,
+	type CreateMultipartUploadOutput,
+	type GetObjectCommandInput,
+	type PutObjectCommandInput,
+} from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
+import { Readable } from "node:stream"
 import aws4 from "aws4"
 import * as he from "he"
 import crypto from "node:crypto"
@@ -25,7 +35,7 @@ export function resetTmpDir() {
 }
 
 export function generateTestObjects(
-	s3Client: AWS.S3,
+	s3Client: S3,
 	bucket: string,
 	amount: number,
 ) {
@@ -36,7 +46,7 @@ export function generateTestObjects(
 		Body: "Hello!",
 	}))
 
-	return pMap(objects, (object) => s3Client.putObject(object).promise(), {
+	return pMap(objects, (object) => s3Client.putObject(object), {
 		concurrency: 100,
 	})
 }
@@ -57,23 +67,8 @@ export async function createServerAndClient(options: S3SandboxOptions = {}) {
 	const { port } = await s3rver.run()
 	instances.add(s3rver)
 
-	const s3Client = new AWS.S3({
-		accessKeyId: "S3RVER",
-		secretAccessKey: "S3RVER",
-		endpoint: `localhost:${port}`,
-		sslEnabled: false,
-		s3ForcePathStyle: true,
-		signatureVersion: "v4",
-	})
-
-	return {
-		s3rver,
-		s3Client: Object.assign(s3Client, {
-			endpoint: Object.assign(new AWS.Endpoint(`http://localhost:${port}`), {
-				path: "/",
-			}),
-		}),
-	}
+	const s3Client = new TestS3Client({ endpoint: `http://localhost:${port}` })
+	return { s3rver, s3Client }
 }
 
 export { instances }
@@ -113,9 +108,81 @@ export class StreamingRequestSigner extends RequestSigner {
 	}
 }
 
-export type TestS3Client = Awaited<
-	ReturnType<typeof createServerAndClient>
->["s3Client"]
+export const clients = new Set<TestS3Client>()
+
+/** SDK v3 client with a mutable endpoint for mounted and virtual-host contract tests. */
+export class TestS3Client extends S3 {
+	endpoint: URL
+	constructor(options: S3ClientConfig & { endpoint: string }) {
+		super({
+			region: "us-east-1",
+			forcePathStyle: true,
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
+			requestChecksumCalculation: "WHEN_REQUIRED",
+			responseChecksumValidation: "WHEN_REQUIRED",
+			maxAttempts: 1,
+			...options,
+		})
+		this.endpoint = new URL(options.endpoint)
+		this.config.endpoint = async () => ({
+			protocol: this.endpoint.protocol,
+			hostname: this.endpoint.hostname,
+			port:
+				Number(this.endpoint.port) ||
+				(this.endpoint.protocol === "https:" ? 443 : 80),
+			path: this.endpoint.pathname,
+		})
+		clients.add(this)
+	}
+	async getSignedUrl(
+		operation: "getObject" | "putObject",
+		options: (GetObjectCommandInput &
+			Omit<PutObjectCommandInput, "Expires">) & {
+			Expires?: number
+		},
+	): Promise<string> {
+		const { Expires: expiresIn = 900, ...parameters } = options
+		// SDK v3 requires the full bucket URL when bucketEndpoint is enabled.
+		const input = {
+			...parameters,
+			Bucket: this.config.bucketEndpoint
+				? this.endpoint.href
+				: parameters.Bucket,
+		}
+		// Endpoint-related middleware captures constructor options in SDK v3.
+		const client = this.config.bucketEndpoint
+			? new TestS3Client({
+					endpoint: this.endpoint.href,
+					bucketEndpoint: true,
+					forcePathStyle: false,
+				})
+			: this
+		return operation === "getObject"
+			? getSignedUrl(client, new GetObjectCommand(input), { expiresIn })
+			: getSignedUrl(client, new PutObjectCommand(input), { expiresIn })
+	}
+}
+
+/** Independent signature-v2 query signer; no implementation signing helpers are imported. */
+export function presignV2(
+	client: TestS3Client,
+	input: { Bucket: string; Key: string; Expires: number },
+): string {
+	const expires =
+		Math.floor(Temporal.Now.instant().epochMilliseconds / 1000) + input.Expires
+	const resource = `/${input.Bucket}/${input.Key}`
+	const signature = crypto
+		.createHmac("sha1", "S3RVER")
+		.update(`GET\n\n\n${expires}\n${resource}`)
+		.digest("base64")
+	const url = new URL(resource, client.endpoint)
+	url.search = new URLSearchParams({
+		AWSAccessKeyId: "S3RVER",
+		Expires: String(expires),
+		Signature: signature,
+	}).toString()
+	return url.href
+}
 
 export function required<T>(value: T | null | undefined): T {
 	if (value === undefined || value === null) throw new Error("Expected a value")
@@ -127,13 +194,27 @@ export function bodyBytes(value: unknown): Buffer {
 	return value
 }
 
-export function setTestEndpoint(client: TestS3Client, url: string): void {
-	client.endpoint = Object.assign(new AWS.Endpoint(url), {
-		path: new URL(url).pathname,
+/** Collect SDK v3's streaming object body for inherited byte assertions. */
+export async function readBody(value: unknown): Promise<Buffer> {
+	if (Buffer.isBuffer(value)) return value
+	if (!(value instanceof Readable))
+		throw new TypeError("Expected an object body stream")
+	return new Promise<Buffer>((resolve, reject) => {
+		const chunks: Buffer[] = []
+		value.on("data", (chunk: unknown) => {
+			if (chunk instanceof Uint8Array) chunks.push(Buffer.from(chunk))
+			else reject(new TypeError("Expected bytes"))
+		})
+		value.on("end", () => resolve(Buffer.concat(chunks)))
+		value.on("error", reject)
 	})
 }
 
-export function uploadParameters(data: AWS.S3.CreateMultipartUploadOutput) {
+export function setTestEndpoint(client: TestS3Client, url: string): void {
+	client.endpoint = new URL(url)
+}
+
+export function uploadParameters(data: CreateMultipartUploadOutput) {
 	return {
 		Bucket: required(data.Bucket),
 		Key: required(data.Key),
@@ -142,11 +223,16 @@ export function uploadParameters(data: AWS.S3.CreateMultipartUploadOutput) {
 }
 
 export function errorCode(error: unknown): unknown {
-	return error instanceof Error && "code" in error ? error.code : undefined
+	return error instanceof Error
+		? "code" in error
+			? error.code
+			: error.name
+		: undefined
 }
 export function errorStatus(error: unknown): unknown {
-	return error instanceof Error && "statusCode" in error
-		? error.statusCode
+	return error instanceof Error && "$metadata" in error
+		? z.object({ httpStatusCode: z.number().optional() }).parse(error.$metadata)
+				.httpStatusCode
 		: undefined
 }
 export function errorMessage(error: unknown): string {
@@ -159,7 +245,14 @@ export function errorResponse(error: unknown): HttpResponse {
 }
 
 export function parseCopyResult(value: unknown) {
-	return z.object({ ETag: z.string(), LastModified: z.unknown() }).parse(value)
+	return z
+		.object({
+			CopyObjectResult: z.object({
+				ETag: z.string(),
+				LastModified: z.unknown(),
+			}),
+		})
+		.parse(value).CopyObjectResult
 }
 
 export function nextS3Event(
@@ -236,7 +329,8 @@ export function createStreamingSigner(
 			hostname: client.endpoint.hostname,
 			port: client.endpoint.port,
 			path:
-				client.endpoint.path + `${requestOptions.Bucket}/${requestOptions.Key}`,
+				client.endpoint.pathname +
+				`${requestOptions.Bucket}/${requestOptions.Key}`,
 			headers: {
 				"X-Amz-Decoded-Content-Length": chunks.reduce(
 					(length, chunk) => length + chunk.length,
@@ -244,6 +338,6 @@ export function createStreamingSigner(
 				),
 			},
 		},
-		required(client.config.credentials),
+		{ accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 	)
 }

@@ -1,9 +1,11 @@
+import { Upload } from "@aws-sdk/lib-storage"
 import {
 	createStreamingSigner,
 	response,
 	unquoteETag,
 	required,
 	bodyBytes,
+	readBody,
 	setTestEndpoint,
 	uploadParameters,
 	parseCopyResult,
@@ -50,16 +52,12 @@ describe("Operations on Objects", () => {
 
 	describe("Delete Multiple Objects", () => {
 		it("deletes an image from a bucket", async function () {
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "large",
-					Body: Buffer.alloc(10),
-				})
-				.promise()
-			await s3Client
-				.deleteObject({ Bucket: "bucket-a", Key: "large" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "large",
+				Body: Buffer.alloc(10),
+			})
+			await s3Client.deleteObject({ Bucket: "bucket-a", Key: "large" })
 		})
 
 		it("deletes 500 objects with deleteObjects", async function () {
@@ -67,9 +65,10 @@ describe("Operations on Objects", () => {
 			const deleteObj = {
 				Objects: Array.from({ length: 500 }, (_, i) => ({ Key: "key" + i })),
 			}
-			const data = await s3Client
-				.deleteObjects({ Bucket: "bucket-a", Delete: deleteObj })
-				.promise()
+			const data = await s3Client.deleteObjects({
+				Bucket: "bucket-a",
+				Delete: deleteObj,
+			})
 			expect(data.Deleted).to.exist
 			expect(data.Deleted).to.have.lengthOf(500)
 			expect(data.Deleted?.find((object) => object.Key === "key67")).to.exist
@@ -78,12 +77,10 @@ describe("Operations on Objects", () => {
 		it("reports invalid XML when using deleteObjects with zero objects", async function () {
 			let error: unknown
 			try {
-				await s3Client
-					.deleteObjects({
-						Bucket: "bucket-a",
-						Delete: { Objects: [] },
-					})
-					.promise()
+				await s3Client.deleteObjects({
+					Bucket: "bucket-a",
+					Delete: { Objects: [] },
+				})
 			} catch (err: unknown) {
 				error = err
 			}
@@ -93,9 +90,10 @@ describe("Operations on Objects", () => {
 
 		it("deletes nonexistent objects", async function () {
 			const deleteObj = { Objects: [{ Key: "doesnotexist" }] }
-			const data = await s3Client
-				.deleteObjects({ Bucket: "bucket-a", Delete: deleteObj })
-				.promise()
+			const data = await s3Client.deleteObjects({
+				Bucket: "bucket-a",
+				Delete: deleteObj,
+			})
 			expect(data.Deleted).to.exist
 			expect(data.Deleted).to.have.lengthOf(1)
 			expect(data.Deleted?.find((object) => object.Key === "doesnotexist")).to
@@ -108,77 +106,66 @@ describe("Operations on Objects", () => {
 			await generateTestObjects(s3Client, "bucket-a", 500)
 			await pMap(
 				Array.from({ length: 500 }, (_, i) => i),
-				(i) =>
-					s3Client
-						.deleteObject({ Bucket: "bucket-a", Key: "key" + i })
-						.promise(),
+				(i) => s3Client.deleteObject({ Bucket: "bucket-a", Key: "key" + i }),
 				{ concurrency: 100 },
 			)
 		})
 
 		it("deletes a nonexistent object from a bucket", async function () {
-			await s3Client
-				.deleteObject({ Bucket: "bucket-a", Key: "doesnotexist" })
-				.promise()
+			await s3Client.deleteObject({ Bucket: "bucket-a", Key: "doesnotexist" })
 		})
 	})
 
 	describe("GET Object", () => {
 		it("stores a large buffer in a bucket", async function () {
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "large",
-					Body: Buffer.alloc(20 * Math.pow(1024, 2)),
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "large",
+				Body: Buffer.alloc(20 * Math.pow(1024, 2)),
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
 		it("gets an image from a bucket", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const data = await fs.promises.readFile(file)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: data,
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "image" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: data,
+				ContentType: "image/jpeg",
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "image",
+			})
 			expect(object.ETag).to.equal(JSON.stringify(md5(data)))
 			expect(object.ContentLength).to.equal(data.length)
 			expect(object.ContentType).to.equal("image/jpeg")
 		})
 
 		it("can HEAD an empty object in a bucket", async function () {
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "somekey",
-					Body: "",
-				})
-				.promise()
-			const object = await s3Client
-				.headObject({ Bucket: "bucket-a", Key: "somekey" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "somekey",
+				Body: "",
+			})
+			const object = await s3Client.headObject({
+				Bucket: "bucket-a",
+				Key: "somekey",
+			})
 			expect(object.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
 		it("gets partial image from a bucket with a range request", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: "bucket-a",
 				Key: "image",
 			})
@@ -193,15 +180,13 @@ describe("Operations on Objects", () => {
 
 		it("gets a response without range headers when no range is specified in the request", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: "bucket-a",
 				Key: "image",
 			})
@@ -216,15 +201,13 @@ describe("Operations on Objects", () => {
 
 		it("gets a response with range headers when the requested range starts on byte 0 and no end", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: "bucket-a",
 				Key: "image",
 			})
@@ -240,15 +223,13 @@ describe("Operations on Objects", () => {
 		it("returns 416 error for out of bounds range requests", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const { size: filesize } = fs.statSync(file)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: "bucket-a",
 				Key: "image",
 			})
@@ -268,15 +249,13 @@ describe("Operations on Objects", () => {
 		it("returns actual length of data for partial out of bounds range requests", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const { size: filesize } = fs.statSync(file)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: "bucket-a",
 				Key: "image",
 			})
@@ -293,19 +272,15 @@ describe("Operations on Objects", () => {
 		})
 
 		it("finds a text file in a multi directory path", async function () {
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "multi/directory/path/text",
-					Body: "Hello!",
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({
-					Bucket: "bucket-a",
-					Key: "multi/directory/path/text",
-				})
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "multi/directory/path/text",
+				Body: "Hello!",
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "multi/directory/path/text",
+			})
 			expect(object.ETag).to.equal(JSON.stringify(md5("Hello!")))
 			expect(object.ContentLength).to.equal(6)
 			expect(object.ContentType).to.equal("application/octet-stream")
@@ -314,18 +289,17 @@ describe("Operations on Objects", () => {
 		it("returns image metadata from a bucket in HEAD request", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const fileContent = await fs.promises.readFile(file)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: fileContent,
-					ContentType: "image/jpeg",
-					ContentLength: fileContent.length,
-				})
-				.promise()
-			const object = await s3Client
-				.headObject({ Bucket: "bucket-a", Key: "image" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: fileContent,
+				ContentType: "image/jpeg",
+				ContentLength: fileContent.length,
+			})
+			const object = await s3Client.headObject({
+				Bucket: "bucket-a",
+				Key: "image",
+			})
 			expect(object.ETag).to.equal(JSON.stringify(md5(fileContent)))
 			expect(object.ContentLength).to.equal(fileContent.length)
 			expect(object.ContentType).to.equal("image/jpeg")
@@ -334,7 +308,7 @@ describe("Operations on Objects", () => {
 		it("fails to find an image from a bucket", async function () {
 			let error: unknown
 			try {
-				await s3Client.getObject({ Bucket: "bucket-a", Key: "image" }).promise()
+				await s3Client.getObject({ Bucket: "bucket-a", Key: "image" })
 			} catch (err: unknown) {
 				error = err
 				expect(errorCode(err)).to.equal("NoSuchKey")
@@ -346,9 +320,10 @@ describe("Operations on Objects", () => {
 
 	describe("GET Object ACL", () => {
 		it("returns a dummy acl for an object", async function () {
-			const object = await s3Client
-				.getObjectAcl({ Bucket: "bucket-a", Key: "image0" })
-				.promise()
+			const object = await s3Client.getObjectAcl({
+				Bucket: "bucket-a",
+				Key: "image0",
+			})
 			expect(required(object.Owner).DisplayName).to.equal("S3rver")
 		})
 	})
@@ -356,26 +331,25 @@ describe("Operations on Objects", () => {
 	describe("GET Object tagging", () => {
 		it("errors when getting tags for an object that doesn't exist", async function () {
 			await expect(
-				s3Client
-					.getObjectTagging({
-						Bucket: "bucket-a",
-						Key: "text",
-					})
-					.promise(),
+				s3Client.getObjectTagging({
+					Bucket: "bucket-a",
+					Key: "text",
+				}),
 			).rejects.toThrow("The specified key does not exist.")
 		})
 
 		it("returns an empty tag set for an untagged object", async function () {
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text",
+				Body: "Hello!",
+			})
 
-			const tagging = await s3Client
-				.getObjectTagging({
+			const { $metadata: _transport, ...tagging } =
+				await s3Client.getObjectTagging({
 					Bucket: "bucket-a",
 					Key: "text",
 				})
-				.promise()
 
 			expect(tagging).to.eql({ TagSet: [] })
 		})
@@ -392,11 +366,12 @@ describe("Operations on Objects", () => {
 				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text" })
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "text",
+			})
 			expect(object.ContentType).to.equal("binary/octet-stream")
-			expect(object.Body).to.deep.equal(Buffer.from("Hello!"))
+			expect(await readBody(object.Body)).to.deep.equal(Buffer.from("Hello!"))
 		})
 
 		it("rejects requests with an invalid content-type", async function () {
@@ -428,11 +403,12 @@ describe("Operations on Objects", () => {
 				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text" })
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "text",
+			})
 			expect(object.ContentType).to.equal("binary/octet-stream")
-			expect(bodyBytes(object.Body).toString()).to.equal("Hello!")
+			expect((await readBody(object.Body)).toString()).to.equal("Hello!")
 		})
 
 		it("stores a text object with a content-type", async function () {
@@ -446,11 +422,12 @@ describe("Operations on Objects", () => {
 				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text" })
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "text",
+			})
 			expect(object.ContentType).to.equal("text/plain")
-			expect(object.Body).to.deep.equal(Buffer.from("Hello!"))
+			expect(await readBody(object.Body)).to.deep.equal(Buffer.from("Hello!"))
 		})
 
 		it("returns the location of the stored object in a header", async function () {
@@ -733,9 +710,11 @@ describe("Operations on Objects", () => {
 
 	describe("PUT Object", () => {
 		it("stores a text object in a bucket", async function () {
-			const data = await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text",
+				Body: "Hello!",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
@@ -746,76 +725,69 @@ describe("Operations on Objects", () => {
 			]
 
 			// Get object from store
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(files[0]!),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "image" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(files[0]!),
+				ContentType: "image/jpeg",
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "image",
+			})
 
 			// Store different object
-			const storedObject = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(files[1]!),
-					ContentType: "image/jpeg",
-				})
-				.promise()
+			const storedObject = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(files[1]!),
+				ContentType: "image/jpeg",
+			})
 			expect(storedObject.ETag).to.not.equal(object.ETag)
 
 			// Get object again and do some comparisons
-			const newObject = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "image" })
-				.promise()
+			const newObject = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "image",
+			})
 			expect(newObject.LastModified).to.not.equal(object.LastModified)
 			expect(newObject.ContentLength).to.not.equal(object.ContentLength)
 		})
 
 		it("distinguishes keys stored with and without a trailing /", async function () {
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-				.promise()
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "text/",
-					Body: "Goodbye!",
-				})
-				.promise()
-			const obj1 = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text" })
-				.promise()
-			const obj2 = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text/" })
-				.promise()
-			expect(bodyBytes(obj1.Body).toString()).to.equal("Hello!")
-			expect(bodyBytes(obj2.Body).toString()).to.equal("Goodbye!")
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text",
+				Body: "Hello!",
+			})
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text/",
+				Body: "Goodbye!",
+			})
+			const obj1 = await s3Client.getObject({ Bucket: "bucket-a", Key: "text" })
+			const obj2 = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "text/",
+			})
+			expect((await readBody(obj1.Body)).toString()).to.equal("Hello!")
+			expect((await readBody(obj2.Body)).toString()).to.equal("Goodbye!")
 		})
 
 		it("stores a text object with invalid win32 path characters and retrieves it", async function () {
 			const reservedChars = '\\/:*?"<>|'
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: `mykey-&-${reservedChars}`,
-					Body: "Hello!",
-				})
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: `mykey-&-${reservedChars}`,
+				Body: "Hello!",
+			})
 
-			const object = await s3Client
-				.getObject({
-					Bucket: "bucket-a",
-					Key: `mykey-&-${reservedChars}`,
-				})
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: `mykey-&-${reservedChars}`,
+			})
 
-			expect(bodyBytes(object.Body).toString()).to.equal("Hello!")
+			expect((await readBody(object.Body)).toString()).to.equal("Hello!")
 		})
 
 		it("stores a text object with no content type and retrieves it", async function () {
@@ -824,40 +796,35 @@ describe("Operations on Objects", () => {
 				body: "Hello!",
 			})
 			expect(res.statusCode).to.equal(200)
-			const data = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text" })
-				.promise()
+			const data = await s3Client.getObject({ Bucket: "bucket-a", Key: "text" })
 			expect(data.ContentType).to.equal("binary/octet-stream")
 		})
 
 		it("stores a text object with some custom metadata", async function () {
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "textmetadata",
-					Body: "Hello!",
-					Metadata: {
-						someKey: "value",
-					},
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "textmetadata",
+				Body: "Hello!",
+				Metadata: {
+					someKey: "value",
+				},
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "textmetadata" })
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "textmetadata",
+			})
 			expect(required(object.Metadata).somekey).to.equal("value")
 		})
 
 		it("stores an image in a bucket", async function () {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "image",
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "image",
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
@@ -872,10 +839,11 @@ describe("Operations on Objects", () => {
 				ContentEncoding: "gzip",
 			}
 
-			await s3Client.putObject(params).promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "jquery" })
-				.promise()
+			await s3Client.putObject(params)
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "jquery",
+			})
 			expect(object.ContentEncoding).to.equal("gzip")
 			expect(object.ContentType).to.equal("application/javascript")
 		})
@@ -892,46 +860,45 @@ describe("Operations on Objects", () => {
 				`${s3Client.endpoint.protocol}//localhost:${s3Client.endpoint.port}/basepath`,
 			)
 
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "text",
-					Body: "Hello!",
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-a", Key: "text" })
-				.promise()
-			expect(bodyBytes(object.Body).toString()).to.equal("Hello!")
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text",
+				Body: "Hello!",
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "text",
+			})
+			expect((await readBody(object.Body)).toString()).to.equal("Hello!")
 		})
 
 		it("stores an object in a bucket after all objects are deleted", async function () {
 			const bucket = "foobars"
-			await s3Client.createBucket({ Bucket: bucket }).promise()
-			await s3Client
-				.putObject({ Bucket: bucket, Key: "foo.txt", Body: "Hello!" })
-				.promise()
-			await s3Client.deleteObject({ Bucket: bucket, Key: "foo.txt" }).promise()
-			await s3Client
-				.putObject({ Bucket: bucket, Key: "foo2.txt", Body: "Hello2!" })
-				.promise()
+			await s3Client.createBucket({ Bucket: bucket })
+			await s3Client.putObject({
+				Bucket: bucket,
+				Key: "foo.txt",
+				Body: "Hello!",
+			})
+			await s3Client.deleteObject({ Bucket: bucket, Key: "foo.txt" })
+			await s3Client.putObject({
+				Bucket: bucket,
+				Key: "foo2.txt",
+				Body: "Hello2!",
+			})
 		})
 
 		it("stores an object with a storage class", async function () {
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "somekey",
-					Body: "Hello!",
-					StorageClass: "STANDARD_IA",
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({
-					Bucket: "bucket-a",
-					Key: "somekey",
-				})
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "somekey",
+				Body: "Hello!",
+				StorageClass: "STANDARD_IA",
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "somekey",
+			})
 			expect(object.ETag).to.equal(JSON.stringify(md5("Hello!")))
 			expect(object.StorageClass).to.equal("STANDARD_IA")
 		})
@@ -939,14 +906,13 @@ describe("Operations on Objects", () => {
 		it("fails to store an object with an invalid storage class", async function () {
 			let error: unknown
 			try {
-				await s3Client
-					.putObject({
-						Bucket: "bucket-a",
-						Key: "somekey",
-						Body: "Hello!",
-						StorageClass: "BAD_STORAGE",
-					})
-					.promise()
+				await s3Client.putObject({
+					Bucket: "bucket-a",
+					Key: "somekey",
+					Body: "Hello!",
+					// @ts-expect-error Deliberately send an invalid enum value to test server validation.
+					StorageClass: "BAD_STORAGE",
+				})
 			} catch (err: unknown) {
 				error = err
 			}
@@ -981,10 +947,13 @@ describe("Operations on Objects", () => {
 				const resBody = parseXml(resBodyString)
 				expect(resBody).to.be.empty
 				expect(res.statusCode).to.equal(200)
-				const object = await s3Client
-					.getObject({ Bucket: "bucket-a", Key: "text" })
-					.promise()
-				expect(bodyBytes(object.Body).slice(8192).toString()).to.equal("Hello!")
+				const object = await s3Client.getObject({
+					Bucket: "bucket-a",
+					Key: "text",
+				})
+				expect((await readBody(object.Body)).slice(8192).toString()).to.equal(
+					"Hello!",
+				)
 			})
 
 			it("fails to store an object when an initial chunk is smaller than 8KB", async function () {
@@ -1118,31 +1087,25 @@ describe("Operations on Objects", () => {
 			const destKey = "image/jamie"
 
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: srcKey,
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: srcKey,
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
-			const copyResult = await s3Client
-				.copyObject({
-					Bucket: "bucket-b",
-					Key: destKey,
-					CopySource: "/bucket-a/" + srcKey,
-				})
-				.promise()
+			const copyResult = await s3Client.copyObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+				CopySource: "/bucket-a/" + srcKey,
+			})
 			expect(parseCopyResult(copyResult).ETag).to.equal(data.ETag)
 			expect(Number.isFinite(Number(parseCopyResult(copyResult).LastModified)))
 				.to.be.true
-			const object = await s3Client
-				.getObject({
-					Bucket: "bucket-b",
-					Key: destKey,
-				})
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+			})
 			expect(object.ETag).to.equal(data.ETag)
 		})
 
@@ -1151,29 +1114,26 @@ describe("Operations on Objects", () => {
 			const destKey = "image/jamie"
 
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: srcKey,
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-					Metadata: {
-						someKey: "value",
-					},
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: srcKey,
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+				Metadata: {
+					someKey: "value",
+				},
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
-			await s3Client
-				.copyObject({
-					Bucket: "bucket-b",
-					Key: destKey,
-					// MetadataDirective is implied to be COPY
-					CopySource: "/bucket-a/" + srcKey,
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-b", Key: destKey })
-				.promise()
+			await s3Client.copyObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+				// MetadataDirective is implied to be COPY
+				CopySource: "/bucket-a/" + srcKey,
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+			})
 			expect(object.Metadata).to.have.property("somekey", "value")
 			expect(object.ContentType).to.equal("image/jpeg")
 			expect(object.ETag).to.equal(data.ETag)
@@ -1184,22 +1144,18 @@ describe("Operations on Objects", () => {
 			const destKey = "new 新しい.jpg"
 
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: srcKey,
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: srcKey,
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
-			const copyResult = await s3Client
-				.copyObject({
-					Bucket: "bucket-a",
-					Key: destKey,
-					CopySource: "/bucket-a/" + encodeURI(srcKey),
-				})
-				.promise()
+			const copyResult = await s3Client.copyObject({
+				Bucket: "bucket-a",
+				Key: destKey,
+				CopySource: "/bucket-a/" + encodeURI(srcKey),
+			})
 			expect(parseCopyResult(copyResult).ETag).to.equal(data.ETag)
 			expect(Number.isFinite(Number(parseCopyResult(copyResult).LastModified)))
 				.to.be.true
@@ -1210,28 +1166,26 @@ describe("Operations on Objects", () => {
 			const destKey = "image/jamie"
 
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: srcKey,
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			await s3Client
-				.copyObject({
-					Bucket: "bucket-b",
-					Key: destKey,
-					CopySource: "/bucket-a/" + srcKey,
-					MetadataDirective: "REPLACE",
-					Metadata: {
-						someKey: "value",
-					},
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-b", Key: destKey })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: srcKey,
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
+			await s3Client.copyObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+				CopySource: "/bucket-a/" + srcKey,
+				MetadataDirective: "REPLACE",
+				ContentType: "application/octet-stream",
+				Metadata: {
+					someKey: "value",
+				},
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+			})
 			expect(required(object.Metadata).somekey).to.equal("value")
 			expect(object.ContentType).to.equal("application/octet-stream")
 		})
@@ -1241,29 +1195,27 @@ describe("Operations on Objects", () => {
 			const destKey = "image/jamie"
 
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: srcKey,
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: srcKey,
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
-			await s3Client
-				.copyObject({
-					Bucket: "bucket-b",
-					Key: destKey,
-					CopySource: "/bucket-a/" + srcKey,
-					MetadataDirective: "REPLACE",
-					Metadata: {
-						someKey: "value",
-					},
-				})
-				.promise()
-			const object = await s3Client
-				.getObject({ Bucket: "bucket-b", Key: destKey })
-				.promise()
+			await s3Client.copyObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+				CopySource: "/bucket-a/" + srcKey,
+				MetadataDirective: "REPLACE",
+				ContentType: "application/octet-stream",
+				Metadata: {
+					someKey: "value",
+				},
+			})
+			const object = await s3Client.getObject({
+				Bucket: "bucket-b",
+				Key: destKey,
+			})
 			expect(object.Metadata).to.have.property("somekey", "value")
 			expect(object.ContentType).to.equal("application/octet-stream")
 		})
@@ -1272,27 +1224,23 @@ describe("Operations on Objects", () => {
 			const key = "image"
 
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: key,
-					Body: await fs.promises.readFile(file),
-					ContentType: "image/jpeg",
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: key,
+				Body: await fs.promises.readFile(file),
+				ContentType: "image/jpeg",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 			let error: unknown
 			try {
-				await s3Client
-					.copyObject({
-						Bucket: "bucket-a",
-						Key: key,
-						CopySource: "/bucket-a/" + key,
-						Metadata: {
-							someKey: "value",
-						},
-					})
-					.promise()
+				await s3Client.copyObject({
+					Bucket: "bucket-a",
+					Key: key,
+					CopySource: "/bucket-a/" + key,
+					Metadata: {
+						someKey: "value",
+					},
+				})
 			} catch (err: unknown) {
 				error = err
 				expect(errorStatus(err)).to.equal(400)
@@ -1303,13 +1251,11 @@ describe("Operations on Objects", () => {
 		it("fails to copy an image object because the object does not exist", async function () {
 			let error: unknown
 			try {
-				await s3Client
-					.copyObject({
-						Bucket: "bucket-b",
-						Key: "image/jamie",
-						CopySource: "/bucket-a/doesnotexist",
-					})
-					.promise()
+				await s3Client.copyObject({
+					Bucket: "bucket-b",
+					Key: "image/jamie",
+					CopySource: "/bucket-a/doesnotexist",
+				})
 			} catch (err: unknown) {
 				error = err
 				expect(errorCode(err)).to.equal("NoSuchKey")
@@ -1321,13 +1267,11 @@ describe("Operations on Objects", () => {
 		it("fails to copy an image object because the source bucket does not exist", async function () {
 			let error: unknown
 			try {
-				await s3Client
-					.copyObject({
-						Bucket: "bucket-b",
-						Key: "image/jamie",
-						CopySource: "/falsebucket/doesnotexist",
-					})
-					.promise()
+				await s3Client.copyObject({
+					Bucket: "bucket-b",
+					Key: "image/jamie",
+					CopySource: "/falsebucket/doesnotexist",
+				})
 			} catch (err: unknown) {
 				error = err
 				expect(errorCode(err)).to.equal("NoSuchBucket")
@@ -1339,247 +1283,211 @@ describe("Operations on Objects", () => {
 
 	describe("PUT Object tagging", () => {
 		it("tags an object in a bucket", async function () {
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text",
+				Body: "Hello!",
+			})
 
-			await s3Client
-				.putObjectTagging({
+			await s3Client.putObjectTagging({
+				Bucket: "bucket-a",
+				Key: "text",
+				Tagging: { TagSet: [{ Key: "Test", Value: "true" }] },
+			})
+
+			const { $metadata: _transport, ...tagging } =
+				await s3Client.getObjectTagging({
 					Bucket: "bucket-a",
 					Key: "text",
-					Tagging: { TagSet: [{ Key: "Test", Value: "true" }] },
 				})
-				.promise()
-
-			const tagging = await s3Client
-				.getObjectTagging({
-					Bucket: "bucket-a",
-					Key: "text",
-				})
-				.promise()
 
 			expect(tagging).to.eql({ TagSet: [{ Key: "Test", Value: "true" }] })
 		})
 
 		it("errors when tagging an object that doesn't exist", async function () {
 			await expect(
-				s3Client
-					.putObjectTagging({
-						Bucket: "bucket-a",
-						Key: "text",
-						Tagging: { TagSet: [{ Key: "Test", Value: "true" }] },
-					})
-					.promise(),
+				s3Client.putObjectTagging({
+					Bucket: "bucket-a",
+					Key: "text",
+					Tagging: { TagSet: [{ Key: "Test", Value: "true" }] },
+				}),
 			).rejects.toThrow("The specified key does not exist.")
 		})
 	})
 
 	describe("Initiate/Upload/Complete Multipart upload", () => {
 		it("uploads a text file to a multi directory path", async function () {
-			const data = await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "multi/directory/path/text",
-					Body: "Hello!",
-				})
-				.promise()
+			const data = await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "multi/directory/path/text",
+				Body: "Hello!",
+			})
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
 		it("completes a managed upload <=5MB", async function () {
-			const data = await s3Client
-				.upload({
+			const data = await new Upload({
+				client: s3Client,
+				params: {
 					Bucket: "bucket-a",
 					Key: "multi/directory/path/multipart",
 					Body: Buffer.alloc(2 * Math.pow(1024, 2)), // 2MB
-				})
-				.promise()
+				},
+			}).done()
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
 		it("completes a managed upload >5MB (multipart upload)", async function () {
-			const data = await s3Client
-				.upload({
+			const data = await new Upload({
+				client: s3Client,
+				params: {
 					Bucket: "bucket-a",
 					Key: "multi/directory/path/multipart",
 					Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
-				})
-				.promise()
+				},
+			}).done()
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
 		})
 
 		it("completes a multipart upload with unquoted ETags", async function () {
-			const data = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "multi/directory/path/multipart",
-				})
-				.promise()
-			const partRes = await s3Client
-				.uploadPart({
-					Body: "Hello!",
-					PartNumber: 1,
-					...uploadParameters(data),
-				})
-				.promise()
-			await s3Client
-				.completeMultipartUpload({
-					MultipartUpload: {
-						Parts: [
-							{
-								PartNumber: 1,
-								ETag: unquoteETag(required(partRes.ETag)),
-							},
-						],
-					},
-					...uploadParameters(data),
-				})
-				.promise()
+			const data = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "multi/directory/path/multipart",
+			})
+			const partRes = await s3Client.uploadPart({
+				Body: "Hello!",
+				PartNumber: 1,
+				...uploadParameters(data),
+			})
+			await s3Client.completeMultipartUpload({
+				MultipartUpload: {
+					Parts: [
+						{
+							PartNumber: 1,
+							ETag: unquoteETag(required(partRes.ETag)),
+						},
+					],
+				},
+				...uploadParameters(data),
+			})
 		})
 
 		it("completes a multipart upload with metadata", async function () {
-			const data = await s3Client
-				.upload({
+			const data = await new Upload({
+				client: s3Client,
+				params: {
 					Bucket: "bucket-a",
 					Key: "multi/directory/path/multipart",
 					Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
 					Metadata: {
 						someKey: "value",
 					},
-				})
-				.promise()
+				},
+			}).done()
 			expect(data.ETag).to.match(/"[a-fA-F0-9]{32}"/)
-			const object = await s3Client
-				.getObject({
-					Bucket: "bucket-a",
-					Key: "multi/directory/path/multipart",
-				})
-				.promise()
+			const object = await s3Client.getObject({
+				Bucket: "bucket-a",
+				Key: "multi/directory/path/multipart",
+			})
 			expect(required(object.Metadata).somekey).to.equal("value")
 		})
 
 		it("should upload a part by copying it", async function () {
-			const upload = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "merged",
-				})
-				.promise()
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "part",
-					Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
-				})
-				.promise()
-			const data = await s3Client
-				.uploadPartCopy({
-					CopySource: "bucket-a/part",
-					Bucket: "bucket-a",
-					Key: "destination",
-					PartNumber: 1,
-					UploadId: required(upload.UploadId),
-				})
-				.promise()
+			const upload = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "merged",
+			})
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "part",
+				Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
+			})
+			const data = await s3Client.uploadPartCopy({
+				CopySource: "bucket-a/part",
+				Bucket: "bucket-a",
+				Key: "destination",
+				PartNumber: 1,
+				UploadId: required(upload.UploadId),
+			})
 			expect(JSON.parse(required(required(data.CopyPartResult).ETag))).to.be.ok
-			await s3Client
-				.completeMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "desintation",
-					UploadId: required(upload.UploadId),
-					MultipartUpload: {
-						Parts: [
-							{
-								ETag: required(required(data.CopyPartResult).ETag),
-								PartNumber: 1,
-							},
-						],
-					},
-				})
-				.promise()
+			await s3Client.completeMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "desintation",
+				UploadId: required(upload.UploadId),
+				MultipartUpload: {
+					Parts: [
+						{
+							ETag: required(required(data.CopyPartResult).ETag),
+							PartNumber: 1,
+						},
+					],
+				},
+			})
 		})
 
 		it("should copy parts from bucket to bucket", async function () {
-			const upload = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "merged",
-				})
-				.promise()
-			await s3Client
-				.putObject({
-					Bucket: "bucket-b",
-					Key: "part",
-					Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
-				})
-				.promise()
-			const data = await s3Client
-				.uploadPartCopy({
-					CopySource: `bucket-b/part`,
-					Bucket: "bucket-a",
-					Key: "destination",
-					PartNumber: 1,
-					UploadId: required(upload.UploadId),
-				})
-				.promise()
+			const upload = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "merged",
+			})
+			await s3Client.putObject({
+				Bucket: "bucket-b",
+				Key: "part",
+				Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
+			})
+			const data = await s3Client.uploadPartCopy({
+				CopySource: `bucket-b/part`,
+				Bucket: "bucket-a",
+				Key: "destination",
+				PartNumber: 1,
+				UploadId: required(upload.UploadId),
+			})
 			expect(JSON.parse(required(required(data.CopyPartResult).ETag))).to.be.ok
 		})
 
 		it("should copy a part range from bucket to bucket", async function () {
-			const upload = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "merged",
-				})
-				.promise()
-			await s3Client
-				.putObject({
-					Bucket: "bucket-b",
-					Key: "part",
-					Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
-				})
-				.promise()
-			const data = await s3Client
-				.uploadPartCopy({
+			const upload = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "merged",
+			})
+			await s3Client.putObject({
+				Bucket: "bucket-b",
+				Key: "part",
+				Body: Buffer.alloc(20 * Math.pow(1024, 2)), // 20MB
+			})
+			const data = await s3Client.uploadPartCopy({
+				CopySource: `bucket-b/part`,
+				CopySourceRange: "bytes=0-10",
+				Bucket: "bucket-a",
+				Key: "destination",
+				PartNumber: 1,
+				UploadId: required(upload.UploadId),
+			})
+			expect(JSON.parse(required(required(data.CopyPartResult).ETag))).to.be.ok
+		})
+
+		it("fails to copy a part range for an out of bounds requests", async function () {
+			const upload = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "merged",
+			})
+			const body = Buffer.alloc(20 * Math.pow(1024, 2)) // 20MB
+			await s3Client.putObject({
+				Bucket: "bucket-b",
+				Key: "part",
+				Body: body,
+			})
+
+			let error: unknown
+			try {
+				await s3Client.uploadPartCopy({
 					CopySource: `bucket-b/part`,
-					CopySourceRange: "bytes=0-10",
+					CopySourceRange: `bytes=${body.length - 10}-${body.length}`,
 					Bucket: "bucket-a",
 					Key: "destination",
 					PartNumber: 1,
 					UploadId: required(upload.UploadId),
 				})
-				.promise()
-			expect(JSON.parse(required(required(data.CopyPartResult).ETag))).to.be.ok
-		})
-
-		it("fails to copy a part range for an out of bounds requests", async function () {
-			const upload = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "merged",
-				})
-				.promise()
-			const body = Buffer.alloc(20 * Math.pow(1024, 2)) // 20MB
-			await s3Client
-				.putObject({
-					Bucket: "bucket-b",
-					Key: "part",
-					Body: body,
-				})
-				.promise()
-
-			let error: unknown
-			try {
-				await s3Client
-					.uploadPartCopy({
-						CopySource: `bucket-b/part`,
-						CopySourceRange: `bytes=${body.length - 10}-${body.length}`,
-						Bucket: "bucket-a",
-						Key: "destination",
-						PartNumber: 1,
-						UploadId: required(upload.UploadId),
-					})
-					.promise()
 			} catch (err: unknown) {
 				error = err
 			}
@@ -1591,24 +1499,20 @@ describe("Operations on Objects", () => {
 		})
 
 		it("fails to copy a part from a nonexistent bucket", async function () {
-			const upload = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "merged",
-				})
-				.promise()
+			const upload = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "merged",
+			})
 
 			let error: unknown
 			try {
-				await s3Client
-					.uploadPartCopy({
-						CopySource: `not-exist/part`,
-						Bucket: "bucket-a",
-						Key: "destination",
-						PartNumber: 1,
-						UploadId: required(upload.UploadId),
-					})
-					.promise()
+				await s3Client.uploadPartCopy({
+					CopySource: `not-exist/part`,
+					Bucket: "bucket-a",
+					Key: "destination",
+					PartNumber: 1,
+					UploadId: required(upload.UploadId),
+				})
 			} catch (err: unknown) {
 				error = err
 			}
@@ -1617,24 +1521,20 @@ describe("Operations on Objects", () => {
 		})
 
 		it("fails to copy a part from a nonexistent key", async function () {
-			const upload = await s3Client
-				.createMultipartUpload({
-					Bucket: "bucket-a",
-					Key: "merged",
-				})
-				.promise()
+			const upload = await s3Client.createMultipartUpload({
+				Bucket: "bucket-a",
+				Key: "merged",
+			})
 
 			let error: unknown
 			try {
-				await s3Client
-					.uploadPartCopy({
-						CopySource: `bucket-b/not-exist`,
-						Bucket: "bucket-a",
-						Key: "destination",
-						PartNumber: 1,
-						UploadId: required(upload.UploadId),
-					})
-					.promise()
+				await s3Client.uploadPartCopy({
+					CopySource: `bucket-b/not-exist`,
+					Bucket: "bucket-a",
+					Key: "destination",
+					PartNumber: 1,
+					UploadId: required(upload.UploadId),
+				})
 			} catch (err: unknown) {
 				error = err
 			}

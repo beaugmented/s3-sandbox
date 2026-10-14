@@ -66,13 +66,11 @@ describe("Static Website Tests", function () {
 	})
 
 	it("fails to read an object at the website endpoint from a bucket with no website configuration", async function () {
-		await s3Client
-			.putObject({
-				Bucket: "bucket-a",
-				Key: "page/index.html",
-				Body: "<html><body>Hello</body></html>",
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "page/index.html",
+			Body: "<html><body>Hello</body></html>",
+		})
 		let res!: HttpResponse
 		try {
 			res = await request("page/", {
@@ -92,13 +90,11 @@ describe("Static Website Tests", function () {
 
 	it("returns an index page at / path", async function () {
 		const expectedBody = "<html><body>Hello</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "index.html",
-				Body: expectedBody,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "index.html",
+			Body: expectedBody,
+		})
 		const res = await request("website0/", {
 			baseUrl: s3Client.endpoint.href,
 			headers: { accept: "text/html" },
@@ -126,13 +122,11 @@ describe("Static Website Tests", function () {
 
 	it("returns an index page at /page/ path", async function () {
 		const expectedBody = "<html><body>Hello</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "page/index.html",
-				Body: expectedBody,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "page/index.html",
+			Body: expectedBody,
+		})
 		const res = await request("website0/page/", {
 			baseUrl: s3Client.endpoint.href,
 			headers: { accept: "text/html" },
@@ -143,20 +137,16 @@ describe("Static Website Tests", function () {
 	it("does not return an index page at /page/ path if an object is stored with a trailing /", async function () {
 		const indexBody = "<html><body>Hello</body></html>"
 		const expectedBody = "<html><body>Goodbye</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "page/index.html",
-				Body: indexBody,
-			})
-			.promise()
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "page/",
-				Body: expectedBody,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "page/index.html",
+			Body: indexBody,
+		})
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "page/",
+			Body: expectedBody,
+		})
 
 		const res = await request("website0/page/", {
 			baseUrl: s3Client.endpoint.href,
@@ -167,13 +157,11 @@ describe("Static Website Tests", function () {
 
 	it("redirects with a 302 status at /page path", async function () {
 		const body = "<html><body>Hello</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "page/index.html",
-				Body: body,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "page/index.html",
+			Body: body,
+		})
 		let res!: HttpResponse
 		try {
 			res = await request("website0/page", {
@@ -190,13 +178,11 @@ describe("Static Website Tests", function () {
 
 	it("redirects with 302 status at /page path for subdomain-style bucket", async function () {
 		const body = "<html><body>Hello</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "page/index.html",
-				Body: body,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "page/index.html",
+			Body: body,
+		})
 		let res!: HttpResponse
 		try {
 			res = await request("page", {
@@ -249,14 +235,12 @@ describe("Static Website Tests", function () {
 
 	it("serves a custom error page if it exists", async function () {
 		const body = "<html><body>Oops!</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website1",
-				Key: "error.html",
-				Body: body,
-				ContentType: "text/html",
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website1",
+			Key: "error.html",
+			Body: body,
+			ContentType: "text/html",
+		})
 		let res!: HttpResponse
 		try {
 			res = await request("website1/page/not-exists", {
@@ -276,12 +260,10 @@ describe("Static Website Tests", function () {
 	it("returns a XML error document for SDK requests", async function () {
 		let error: unknown
 		try {
-			await s3Client
-				.getObject({
-					Bucket: "website0",
-					Key: "page/not-exists",
-				})
-				.promise()
+			await s3Client.getObject({
+				Bucket: "website0",
+				Key: "page/not-exists",
+			})
 		} catch (err: unknown) {
 			error = err
 		}
@@ -292,33 +274,27 @@ describe("Static Website Tests", function () {
 
 	it("stores an object with website-redirect-location metadata", async function () {
 		const redirectLocation = "https://github.com/jamhall/s3rver"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "index.html",
-				Body: "<html><body>Hello</body></html>",
-				WebsiteRedirectLocation: redirectLocation,
-			})
-			.promise()
-		const res = await s3Client
-			.getObject({
-				Bucket: "website0",
-				Key: "index.html",
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "index.html",
+			Body: "<html><body>Hello</body></html>",
+			WebsiteRedirectLocation: redirectLocation,
+		})
+		const res = await s3Client.getObject({
+			Bucket: "website0",
+			Key: "index.html",
+		})
 		expect(res).to.have.property("WebsiteRedirectLocation", redirectLocation)
 	})
 
 	it("redirects for an object stored with a website-redirect-location", async function () {
 		const redirectLocation = "https://github.com/jamhall/s3rver"
-		await s3Client
-			.putObject({
-				Bucket: "website0",
-				Key: "index.html",
-				Body: "<html><body>Hello</body></html>",
-				WebsiteRedirectLocation: redirectLocation,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website0",
+			Key: "index.html",
+			Body: "<html><body>Hello</body></html>",
+			WebsiteRedirectLocation: redirectLocation,
+		})
 		let res!: HttpResponse
 		try {
 			res = await request(`website0/`, {
@@ -336,14 +312,12 @@ describe("Static Website Tests", function () {
 	it("redirects for a custom error page stored with a website-redirect-location", async function () {
 		const redirectLocation = "https://github.com/jamhall/s3rver"
 		const body = "<html><body>Hello</body></html>"
-		await s3Client
-			.putObject({
-				Bucket: "website1",
-				Key: "error.html",
-				Body: body,
-				WebsiteRedirectLocation: redirectLocation,
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "website1",
+			Key: "error.html",
+			Body: body,
+			WebsiteRedirectLocation: redirectLocation,
+		})
 		let res!: HttpResponse
 		try {
 			res = await request(`website1/page/`, {
@@ -379,13 +353,11 @@ describe("Static Website Tests", function () {
 
 		it("does not evaluate routing rules for an index page", async function () {
 			const expectedBody = "<html><body>Hello</body></html>"
-			await s3Client
-				.putObject({
-					Bucket: "website2",
-					Key: "recursive/foo/index.html",
-					Body: expectedBody,
-				})
-				.promise()
+			await s3Client.putObject({
+				Bucket: "website2",
+				Key: "recursive/foo/index.html",
+				Body: expectedBody,
+			})
 			const res = await request("website2/recursive/foo/", {
 				baseUrl: s3Client.endpoint.href,
 				headers: { accept: "text/html" },
@@ -395,13 +367,11 @@ describe("Static Website Tests", function () {
 
 		it("does not evaluate routing rules for an index page redirect", async function () {
 			const expectedBody = "<html><body>Hello</body></html>"
-			await s3Client
-				.putObject({
-					Bucket: "website2",
-					Key: "recursive/foo/index.html",
-					Body: expectedBody,
-				})
-				.promise()
+			await s3Client.putObject({
+				Bucket: "website2",
+				Key: "recursive/foo/index.html",
+				Body: expectedBody,
+			})
 			let res!: HttpResponse
 			try {
 				res = await request("website2/recursive/foo", {

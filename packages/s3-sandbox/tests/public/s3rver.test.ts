@@ -1,10 +1,9 @@
 import {
+	TestS3Client,
 	nextS3Event,
 	createServerAndClient,
 	generateTestObjects,
 } from "./helpers.ts"
-import { type TestS3Client } from "./helpers.ts"
-import AWS from "aws-sdk"
 import express from "express"
 import FormData from "form-data"
 import crypto from "node:crypto"
@@ -32,15 +31,13 @@ describe("S3rver", () => {
 				configureBuckets: buckets,
 			})
 			const { port } = await server.run()
-			const s3Client = new AWS.S3({
-				accessKeyId: "S3RVER",
-				secretAccessKey: "S3RVER",
+			const s3Client = new TestS3Client({
+				credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 				endpoint: `http://localhost:${port}`,
-				sslEnabled: false,
-				s3ForcePathStyle: true,
+				forcePathStyle: true,
 			})
 			try {
-				const res = await s3Client.listBuckets().promise()
+				const res = await s3Client.listBuckets()
 				expect(res.Buckets).to.have.lengthOf(2)
 			} finally {
 				await server.close()
@@ -59,16 +56,14 @@ describe("S3rver", () => {
 				configureBuckets: [bucket],
 			})
 			const { port } = await server.run()
-			const s3Client = new AWS.S3({
-				accessKeyId: "S3RVER",
-				secretAccessKey: "S3RVER",
+			const s3Client = new TestS3Client({
+				credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 				endpoint: `http://localhost:${port}`,
-				sslEnabled: false,
-				s3ForcePathStyle: true,
+				forcePathStyle: true,
 			})
 			try {
-				await s3Client.getBucketCors({ Bucket: bucket.name }).promise()
-				await s3Client.getBucketWebsite({ Bucket: bucket.name }).promise()
+				await s3Client.getBucketCors({ Bucket: bucket.name })
+				await s3Client.getBucketWebsite({ Bucket: bucket.name })
 			} finally {
 				await server.close()
 			}
@@ -84,12 +79,10 @@ describe("S3rver", () => {
 				configureBuckets: [bucket],
 			})
 			const { port } = await server.run()
-			const s3Client = new AWS.S3({
-				accessKeyId: "S3RVER",
-				secretAccessKey: "S3RVER",
+			const s3Client = new TestS3Client({
+				credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 				endpoint: `http://localhost:${port}`,
-				sslEnabled: false,
-				s3ForcePathStyle: true,
+				forcePathStyle: true,
 			})
 			try {
 				await generateTestObjects(s3Client, bucket.name, 10)
@@ -107,12 +100,10 @@ describe("S3rver", () => {
 				configureBuckets: [bucket],
 			})
 			const { port } = await server.run()
-			const s3Client = new AWS.S3({
-				accessKeyId: "S3RVER",
-				secretAccessKey: "S3RVER",
+			const s3Client = new TestS3Client({
+				credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 				endpoint: `http://localhost:${port}`,
-				sslEnabled: false,
-				s3ForcePathStyle: true,
+				forcePathStyle: true,
 			})
 			try {
 				await generateTestObjects(s3Client, bucket.name, 10)
@@ -129,12 +120,10 @@ describe("S3rver", () => {
 				configureBuckets: [bucket],
 			})
 			const { port } = await server.run()
-			const s3Client = new AWS.S3({
-				accessKeyId: "S3RVER",
-				secretAccessKey: "S3RVER",
+			const s3Client = new TestS3Client({
+				credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 				endpoint: `http://localhost:${port}`,
-				sslEnabled: false,
-				s3ForcePathStyle: true,
+				forcePathStyle: true,
 			})
 			try {
 				await generateTestObjects(s3Client, bucket.name, 10)
@@ -158,9 +147,11 @@ describe("S3rver", () => {
 		it("triggers an event with a valid message structure", async function () {
 			const eventPromise = nextS3Event(s3rver)
 			const body = "Hello!"
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "testPutKey", Body: body })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "testPutKey",
+				Body: body,
+			})
 			const event = await eventPromise
 			const iso8601 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 			expect(event.Records[0].eventTime).to.match(iso8601)
@@ -197,9 +188,11 @@ describe("S3rver", () => {
 		it("triggers a Put event", async function () {
 			const eventPromise = nextS3Event(s3rver)
 			const body = "Hello!"
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "testPutKey", Body: body })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "testPutKey",
+				Body: body,
+			})
 			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectCreated:Put")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-a")
@@ -212,17 +205,17 @@ describe("S3rver", () => {
 
 		it("triggers a Copy event", async function () {
 			const body = "Hello!"
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "testPut", Body: body })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "testPut",
+				Body: body,
+			})
 			const eventPromise = nextS3Event(s3rver)
-			await s3Client
-				.copyObject({
-					Bucket: "bucket-b",
-					Key: "testCopy",
-					CopySource: "/bucket-a/testPut",
-				})
-				.promise()
+			await s3Client.copyObject({
+				Bucket: "bucket-b",
+				Key: "testCopy",
+				CopySource: "/bucket-a/testPut",
+			})
 			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectCreated:Copy")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-b")
@@ -234,17 +227,13 @@ describe("S3rver", () => {
 
 		it("triggers a Delete event", async function () {
 			const body = "Hello!"
-			await s3Client
-				.putObject({
-					Bucket: "bucket-a",
-					Key: "testDelete",
-					Body: body,
-				})
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "testDelete",
+				Body: body,
+			})
 			const eventPromise = nextS3Event(s3rver)
-			await s3Client
-				.deleteObject({ Bucket: "bucket-a", Key: "testDelete" })
-				.promise()
+			await s3Client.deleteObject({ Bucket: "bucket-a", Key: "testDelete" })
 			const event = await eventPromise
 			expect(event.Records[0].eventName).to.equal("ObjectRemoved:Delete")
 			expect(event.Records[0].s3.bucket.name).to.equal("bucket-a")
@@ -270,18 +259,18 @@ describe("S3rver", () => {
 			if (boundAddress === null || typeof boundAddress === "string")
 				throw new Error("Expected a TCP server address")
 			const { port } = boundAddress
-			const s3Client = new AWS.S3({
-				accessKeyId: "S3RVER",
-				secretAccessKey: "S3RVER",
+			const s3Client = new TestS3Client({
+				credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 				endpoint: `http://localhost:${port}/basepath`,
-				sslEnabled: false,
-				s3ForcePathStyle: true,
+				forcePathStyle: true,
 			})
-			const res = await s3Client.listBuckets().promise()
+			const res = await s3Client.listBuckets()
 			expect(res.Buckets).to.have.lengthOf(2)
-			await s3Client
-				.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-				.promise()
+			await s3Client.putObject({
+				Bucket: "bucket-a",
+				Key: "text",
+				Body: "Hello!",
+			})
 		} finally {
 			httpServer.close()
 			await once(httpServer, "close")

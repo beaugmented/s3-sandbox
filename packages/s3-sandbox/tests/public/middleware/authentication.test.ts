@@ -3,6 +3,7 @@ import {
 	setTestEndpoint,
 	errorResponse,
 	type TestS3Client,
+	presignV2,
 	createServerAndClient,
 } from "../helpers.ts"
 import S3rver from "../../../src/s3rver.ts"
@@ -32,15 +33,17 @@ describe("REST Authentication", () => {
 	})
 
 	it("can GET a signed URL with subdomain bucket", async function () {
-		await s3Client
-			.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-			.promise()
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "text",
+			Body: "Hello!",
+		})
 		const endpointHref = s3Client.endpoint.href
 		setTestEndpoint(s3Client, `https://s3.amazonaws.com`)
 		Object.assign(s3Client.config, {
-			s3ForcePathStyle: false,
+			forcePathStyle: false,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: "bucket-a",
 			Key: "text",
 		})
@@ -53,19 +56,21 @@ describe("REST Authentication", () => {
 	})
 
 	it("can GET a signed URL with vhost bucket", async function () {
-		await s3Client
-			.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-			.promise()
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "text",
+			Body: "Hello!",
+		})
 		const endpointHref = s3Client.endpoint.href
 		setTestEndpoint(
 			s3Client,
-			`${s3Client.endpoint.protocol}//bucket-a:${s3Client.endpoint.port}${s3Client.endpoint.path}`,
+			`${s3Client.endpoint.protocol}//bucket-a:${s3Client.endpoint.port}${s3Client.endpoint.pathname}`,
 		)
 		Object.assign(s3Client.config, {
-			s3ForcePathStyle: false,
-			s3BucketEndpoint: true,
+			forcePathStyle: false,
+			bucketEndpoint: true,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: "bucket-a",
 			Key: "text",
 		})
@@ -226,9 +231,24 @@ describe("REST Authentication", () => {
 		expect(res.body).to.contain("<Code>RequestTimeTooSkewed</Code>")
 	})
 
+	it("accepts an independently signed query request [v2]", async () => {
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "mykey",
+			Body: "Hello!",
+		})
+		const url = presignV2(s3Client, {
+			Bucket: "bucket-a",
+			Key: "mykey",
+			Expires: 60,
+		})
+		const res = await request(url)
+		expect(res.statusCode).to.equal(200)
+		expect(res.body).to.equal("Hello!")
+	})
+
 	it("rejects an expired presigned request [v2]", async function () {
-		s3Client.config.update({ signatureVersion: "s3" })
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = presignV2(s3Client, {
 			Bucket: "bucket-a",
 			Key: "mykey",
 			Expires: -10, // 10 seconds in the past
@@ -244,8 +264,7 @@ describe("REST Authentication", () => {
 	})
 
 	it("rejects an expired presigned request [v4]", async function () {
-		s3Client.config.update({ signatureVersion: "v4" })
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: "bucket-a",
 			Key: "mykey",
 			Expires: -10, // 10 seconds in the past
@@ -261,7 +280,7 @@ describe("REST Authentication", () => {
 	})
 
 	it("rejects a presigned request with an invalid expiration [v4]", async function () {
-		// aws-sdk unfortunately doesn't expose a way to set the timestamp of the request to presign
+		// Exercise timestamp validation with a raw request independent of SDK defaults.
 		// so we have to construct a mostly-valid request ourselves
 		let res!: HttpResponse
 		try {
@@ -287,16 +306,14 @@ describe("REST Authentication", () => {
 	})
 
 	it("overrides response headers in signed GET requests", async function () {
-		await s3Client
-			.putObject({
-				Bucket: "bucket-a",
-				Key: "image",
-				Body: await fs.promises.readFile(
-					new URL("../fixtures/image0.jpg", import.meta.url),
-				),
-			})
-			.promise()
-		const url = s3Client.getSignedUrl("getObject", {
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "image",
+			Body: await fs.promises.readFile(
+				new URL("../fixtures/image0.jpg", import.meta.url),
+			),
+		})
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: "bucket-a",
 			Key: "image",
 			ResponseContentType: "image/jpeg",
@@ -308,15 +325,13 @@ describe("REST Authentication", () => {
 	})
 
 	it("rejects anonymous requests with response header overrides in GET requests", async function () {
-		await s3Client
-			.putObject({
-				Bucket: "bucket-a",
-				Key: "image",
-				Body: await fs.promises.readFile(
-					new URL("../fixtures/image0.jpg", import.meta.url),
-				),
-			})
-			.promise()
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "image",
+			Body: await fs.promises.readFile(
+				new URL("../fixtures/image0.jpg", import.meta.url),
+			),
+		})
 		let res!: HttpResponse
 		try {
 			res = await request("bucket-a/image", {
@@ -333,7 +348,7 @@ describe("REST Authentication", () => {
 	})
 
 	it("adds x-amz-meta-* metadata specified via query parameters", async function () {
-		const url = s3Client.getSignedUrl("putObject", {
+		const url = await s3Client.getSignedUrl("putObject", {
 			Bucket: "bucket-a",
 			Key: "mykey",
 			Metadata: {
@@ -341,12 +356,10 @@ describe("REST Authentication", () => {
 			},
 		})
 		await request.put(url, { body: "Hello!" })
-		const object = await s3Client
-			.headObject({
-				Bucket: "bucket-a",
-				Key: "mykey",
-			})
-			.promise()
+		const object = await s3Client.headObject({
+			Bucket: "bucket-a",
+			Key: "mykey",
+		})
 		expect(object.Metadata).to.have.property("somekey", "value")
 	})
 
@@ -362,10 +375,12 @@ describe("REST Authentication", () => {
 			`${s3Client.endpoint.protocol}//localhost:${s3Client.endpoint.port}/basepath`,
 		)
 
-		await s3Client
-			.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-			.promise()
-		const url = s3Client.getSignedUrl("getObject", {
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "text",
+			Body: "Hello!",
+		})
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: "bucket-a",
 			Key: "text",
 		})
@@ -374,9 +389,11 @@ describe("REST Authentication", () => {
 	})
 
 	it("can use signed vhost URLs while mounted on a subpath", async function () {
-		await s3Client
-			.putObject({ Bucket: "bucket-a", Key: "text", Body: "Hello!" })
-			.promise()
+		await s3Client.putObject({
+			Bucket: "bucket-a",
+			Key: "text",
+			Body: "Hello!",
+		})
 
 		const app = express()
 		app.use("/basepath", s3rver.getMiddleware())
@@ -391,10 +408,10 @@ describe("REST Authentication", () => {
 			`${s3Client.endpoint.protocol}//bucket-a:${s3Client.endpoint.port}/basepath`,
 		)
 		Object.assign(s3Client.config, {
-			s3ForcePathStyle: false,
-			s3BucketEndpoint: true,
+			forcePathStyle: false,
+			bucketEndpoint: true,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: "bucket-a",
 			Key: "text",
 		})

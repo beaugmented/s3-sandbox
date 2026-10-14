@@ -1,5 +1,9 @@
-import { errorCode, errorMessage, errorResponse } from "../helpers.ts"
-import AWS from "aws-sdk"
+import {
+	TestS3Client,
+	errorCode,
+	errorMessage,
+	errorResponse,
+} from "../helpers.ts"
 import fs from "node:fs"
 import { describe, expect, it } from "vite-plus/test"
 import request from "../http.ts"
@@ -98,17 +102,15 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
 		let error: unknown
 		try {
-			await s3Client.deleteBucketCors({ Bucket: buckets[0]!.name }).promise()
-			await s3Client.getBucketCors({ Bucket: buckets[0]!.name }).promise()
+			await s3Client.deleteBucketCors({ Bucket: buckets[0]!.name })
+			await s3Client.getBucketCors({ Bucket: buckets[0]!.name })
 		} catch (err: unknown) {
 			error = err
 		} finally {
@@ -129,25 +131,21 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [bucket],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
 		try {
-			await s3Client
-				.putObject({
-					Bucket: bucket.name,
-					Key: "image",
-					Body: await fs.promises.readFile(
-						new URL("../fixtures/image0.jpg", import.meta.url),
-					),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: bucket.name,
+				Key: "image",
+				Body: await fs.promises.readFile(
+					new URL("../fixtures/image0.jpg", import.meta.url),
+				),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: bucket.name,
 				Key: "image",
 			})
@@ -167,25 +165,21 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
 		try {
-			await s3Client
-				.putObject({
-					Bucket: buckets[0]!.name,
-					Key: "image",
-					Body: await fs.promises.readFile(
-						new URL("../fixtures/image0.jpg", import.meta.url),
-					),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: buckets[0]!.name,
+				Key: "image",
+				Body: await fs.promises.readFile(
+					new URL("../fixtures/image0.jpg", import.meta.url),
+				),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: buckets[0]!.name,
 				Key: "image",
 			})
@@ -208,25 +202,21 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
 		try {
-			await s3Client
-				.putObject({
-					Bucket: buckets[0]!.name,
-					Key: "image",
-					Body: await fs.promises.readFile(
-						new URL("../fixtures/image0.jpg", import.meta.url),
-					),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: buckets[0]!.name,
+				Key: "image",
+				Body: await fs.promises.readFile(
+					new URL("../fixtures/image0.jpg", import.meta.url),
+				),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: buckets[0]!.name,
 				Key: "image",
 			})
@@ -249,25 +239,21 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
 		try {
-			await s3Client
-				.putObject({
-					Bucket: buckets[0]!.name,
-					Key: "image",
-					Body: await fs.promises.readFile(
-						new URL("../fixtures/image0.jpg", import.meta.url),
-					),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: buckets[0]!.name,
+				Key: "image",
+				Body: await fs.promises.readFile(
+					new URL("../fixtures/image0.jpg", import.meta.url),
+				),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: buckets[0]!.name,
 				Key: "image",
 			})
@@ -287,25 +273,21 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
 		try {
-			await s3Client
-				.putObject({
-					Bucket: buckets[0]!.name,
-					Key: "image",
-					Body: await fs.promises.readFile(
-						new URL("../fixtures/image0.jpg", import.meta.url),
-					),
-					ContentType: "image/jpeg",
-				})
-				.promise()
-			const url = s3Client.getSignedUrl("getObject", {
+			await s3Client.putObject({
+				Bucket: buckets[0]!.name,
+				Key: "image",
+				Body: await fs.promises.readFile(
+					new URL("../fixtures/image0.jpg", import.meta.url),
+				),
+				ContentType: "image/jpeg",
+			})
+			const url = await s3Client.getSignedUrl("getObject", {
 				Bucket: buckets[0]!.name,
 				Key: "image",
 			})
@@ -328,14 +310,12 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: buckets[0]!.name,
 			Key: "image",
 		})
@@ -365,14 +345,12 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: buckets[0]!.name,
 			Key: "image",
 		})
@@ -402,14 +380,12 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [bucket],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: bucket.name,
 			Key: "image",
 		})
@@ -437,14 +413,12 @@ describe("CORS Policy Tests", function () {
 			configureBuckets: [buckets[0]!],
 		})
 		const { port } = await server.run()
-		const s3Client = new AWS.S3({
-			accessKeyId: "S3RVER",
-			secretAccessKey: "S3RVER",
+		const s3Client = new TestS3Client({
+			credentials: { accessKeyId: "S3RVER", secretAccessKey: "S3RVER" },
 			endpoint: `http://localhost:${port}`,
-			sslEnabled: false,
-			s3ForcePathStyle: true,
+			forcePathStyle: true,
 		})
-		const url = s3Client.getSignedUrl("getObject", {
+		const url = await s3Client.getSignedUrl("getObject", {
 			Bucket: buckets[0]!.name,
 			Key: "image",
 		})

@@ -31,6 +31,12 @@ Hono owns request dispatch and error responses through its Node adapter, with gl
 
 S3Sandbox extends EventEmitter rather than an HTTP framework. Its lifecycle, callback handlers, events, and filesystem layout remain compatible. Inherited Koa application methods and context customization are removed before the first release.
 
+## Test client boundary
+
+The consumer contract uses AWS SDK v3, including its matching managed-upload library. Object bodies are collected from SDK streams for byte assertions, and clients are destroyed during cleanup. Empty lists and the default bucket location normalize values omitted by the v3 deserializer; transport metadata is excluded from tagging comparisons. Copy requests explicitly supply the content type that the old SDK supplied automatically. These adaptations preserve the protocol assertions without a v2 client dependency.
+
+Signature-v2 query tests use an independent HMAC signer for valid and expired requests. Streaming signature-v4 tests retain the separate aws4 signer. Neither oracle imports the server's signing implementation.
+
 The inherited `jquery.js.gz` test fixture is an opaque upstream payload. Its embedded JavaScript still mentions the legacy date API; maintained implementation, scripts, and tests do not use that API. Dependency implementations and SDK-returned timestamp objects are also outside this migration's source scope.
 
 The pnpm hook remains a native `.mjs` entry point and imports its erasable TypeScript implementation from `scripts/pnpm-hooks.ts`. The TypeScript 6 compiler API bridge is unchanged in purpose; maintained code is checked with TypeScript 7.

@@ -16,7 +16,7 @@ describe("Operations on the Service", () => {
 			const { s3Client } = await createServerAndClient({
 				configureBuckets: buckets,
 			})
-			const data = await s3Client.listBuckets().promise()
+			const data = await s3Client.listBuckets()
 			expect(data.Buckets).to.have.lengthOf(6)
 			for (const [index, bucket] of required(data.Buckets).entries()) {
 				const config = required(buckets[index])
