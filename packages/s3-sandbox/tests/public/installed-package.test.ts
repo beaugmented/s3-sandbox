@@ -140,11 +140,15 @@ const stopped: Promise<void> = sandbox.close()
 const middleware: ReturnType<S3Sandbox['callback']> = sandbox.getMiddleware()
 const honoMiddleware = sandbox.getHonoMiddleware('/s3')
 const bucketPath: string = sandbox.store.getBucketPath('bucket')
-void [running, stopped, middleware, honoMiddleware, bucketPath]
+const partial = sandbox.store.getObject('bucket', 'key', { end: 0 })
+const suffix = sandbox.store.getObject('bucket', 'key', { suffixLength: 1 })
+void [running, stopped, middleware, honoMiddleware, bucketPath, partial, suffix]
 // @ts-expect-error invalid option type must be rejected
 new S3Sandbox({ port: 'bad' })
 // @ts-expect-error store declarations must retain typed method arguments
 sandbox.store.getBucketPath(123)
+// @ts-expect-error suffix range declarations must retain numeric lengths
+sandbox.store.getObject('bucket', 'key', { suffixLength: '1' })
 `,
 		)
 		pnpm(
