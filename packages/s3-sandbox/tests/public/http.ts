@@ -1,6 +1,6 @@
 import http from "node:http"
 import https from "node:https"
-import type { Readable } from "node:stream"
+import { Readable } from "node:stream"
 
 export type HttpResponse = {
 	statusCode: number
@@ -12,7 +12,7 @@ type Options = {
 	method?: string
 	headers?: http.OutgoingHttpHeaders
 	qs?: Record<string, string | number> | URLSearchParams
-	body?: string | Buffer | Readable
+	body?: string | Buffer | Readable | FormData
 	encoding?: null | string
 	followRedirect?: boolean
 }
@@ -40,11 +40,29 @@ async function request(
 		for (const [name, value] of entries)
 			url.searchParams.set(name, String(value))
 	}
+	let body = options.body
+	const headers = { ...options.headers }
+	if (body instanceof FormData) {
+		const encoded = new Request(url, {
+			method: options.method ?? "GET",
+			body,
+		})
+		const contentType = encoded.headers.get("content-type")
+		if (!encoded.body || !contentType)
+			throw new Error("Expected an encoded multipart body and boundary")
+		if (
+			!Object.keys(headers).some(
+				(name) => name.toLowerCase() === "content-type",
+			)
+		)
+			headers["content-type"] = contentType
+		body = Readable.from(encoded.body, { objectMode: false })
+	}
 	const transport = url.protocol === "https:" ? https : http
 	const response = await new Promise<HttpResponse>((resolve, reject) => {
 		const req = transport.request(
 			url,
-			{ method: options.method ?? "GET", headers: options.headers },
+			{ method: options.method ?? "GET", headers },
 			(res) => {
 				const chunks: Buffer[] = []
 				res.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)))
@@ -60,13 +78,12 @@ async function request(
 			},
 		)
 		req.on("error", reject)
-		if (
-			options.body &&
-			typeof options.body !== "string" &&
-			!Buffer.isBuffer(options.body)
-		)
-			options.body.pipe(req)
-		else req.end(options.body)
+		if (body && typeof body !== "string" && !Buffer.isBuffer(body)) {
+			const source = body
+			source.on("error", (error: Error) => req.destroy(error))
+			req.once("close", () => source.destroy())
+			source.pipe(req)
+		} else req.end(body)
 	})
 	const follows =
 		options.followRedirect !== false &&

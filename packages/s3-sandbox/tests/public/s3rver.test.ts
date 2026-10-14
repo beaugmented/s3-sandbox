@@ -8,7 +8,6 @@ import {
 import { Hono } from "hono"
 import type { HttpBindings } from "@hono/node-server"
 import { createHonoListener } from "./hono.ts"
-import FormData from "form-data"
 import crypto from "node:crypto"
 import http from "node:http"
 import { once } from "node:events"
@@ -176,7 +175,6 @@ describe("S3rver", () => {
 			await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 
 			const event = await eventPromise
@@ -287,12 +285,11 @@ describe("S3rver", () => {
 			const bytes = Buffer.alloc(256 * 1024, 0xff)
 			const form = new FormData()
 			form.append("key", "posted")
-			form.append("file", bytes, "binary.dat")
+			form.append("file", new Blob([bytes]), "binary.dat")
 			const posted = await request.post(
 				`http://localhost:${port}/basepath/bucket-a`,
 				{
 					body: form,
-					headers: form.getHeaders(),
 				},
 			)
 			expect(posted.statusCode).to.equal(204)

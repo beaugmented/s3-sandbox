@@ -24,7 +24,6 @@ import type { HttpResponse } from "../http.ts"
 import { Hono } from "hono"
 import type { HttpBindings } from "@hono/node-server"
 import { createHonoListener } from "../hono.ts"
-import FormData from "form-data"
 import fs from "node:fs"
 import http from "node:http"
 import { beforeEach, describe, expect, it } from "vite-plus/test"
@@ -361,11 +360,14 @@ describe("Operations on Objects", () => {
 		it("stores a text object for a multipart/form-data request", async function () {
 			const form = new FormData()
 			form.append("key", "text")
-			form.append("file", "Hello!", "post_file.txt")
+			form.append(
+				"file",
+				new Blob(["Hello!"], { type: "text/plain" }),
+				"post_file.txt",
+			)
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
 			const object = await s3Client.getObject({
@@ -395,6 +397,23 @@ describe("Operations on Objects", () => {
 			)
 		})
 
+		it("rejects a native multipart request with an explicit invalid content-type", async () => {
+			const form = new FormData()
+			form.append("key", "text")
+			form.append("file", "Hello!")
+			const res = await request
+				.post("bucket-a", {
+					baseUrl: s3Client.endpoint.href,
+					body: form,
+					headers: { "Content-Type": "application/octet-stream" },
+				})
+				.catch(errorResponse)
+			expect(res.statusCode).to.equal(412)
+			expect(res.body).to.contain(
+				"<Condition>Bucket POST must be of the enclosure-type multipart/form-data</Condition>",
+			)
+		})
+
 		it("stores a text object without filename part metadata", async function () {
 			const form = new FormData()
 			form.append("key", "text")
@@ -402,7 +421,6 @@ describe("Operations on Objects", () => {
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
 			const object = await s3Client.getObject({
@@ -443,11 +461,14 @@ describe("Operations on Objects", () => {
 			const form = new FormData()
 			form.append("key", "text")
 			form.append("Content-Type", "text/plain")
-			form.append("file", "Hello!", "post_file.txt")
+			form.append(
+				"file",
+				new Blob(["Hello!"], { type: "text/plain" }),
+				"post_file.txt",
+			)
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
 			const object = await s3Client.getObject({
@@ -462,11 +483,14 @@ describe("Operations on Objects", () => {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const form = new FormData()
 			form.append("key", "image")
-			form.append("file", fs.createReadStream(file))
+			form.append(
+				"file",
+				await fs.openAsBlob(file, { type: "image/jpeg" }),
+				"image0.jpg",
+			)
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
 			expect(res.headers).to.have.property(
@@ -483,13 +507,16 @@ describe("Operations on Objects", () => {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const form = new FormData()
 			form.append("key", "image")
-			form.append("file", fs.createReadStream(file))
+			form.append(
+				"file",
+				await fs.openAsBlob(file, { type: "image/jpeg" }),
+				"image0.jpg",
+			)
 			const res = await request.post("", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
 				headers: {
 					host: "bucket-a",
-					...form.getHeaders(),
 				},
 			})
 			expect(res.statusCode).to.equal(204)
@@ -503,13 +530,16 @@ describe("Operations on Objects", () => {
 			const file = new URL("../fixtures/image0.jpg", import.meta.url)
 			const form = new FormData()
 			form.append("key", "image")
-			form.append("file", fs.createReadStream(file))
+			form.append(
+				"file",
+				await fs.openAsBlob(file, { type: "image/jpeg" }),
+				"image0.jpg",
+			)
 			const res = await request.post("", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
 				headers: {
 					host: "bucket-a.s3.amazonaws.com",
-					...form.getHeaders(),
 				},
 			})
 			expect(res.statusCode).to.equal(204)
@@ -527,7 +557,6 @@ describe("Operations on Objects", () => {
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(200)
 			expect(res.headers).not.to.have.property("content-type")
@@ -542,7 +571,6 @@ describe("Operations on Objects", () => {
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(201)
 			expect(res.headers).to.have.property("content-type", "application/xml")
@@ -558,7 +586,6 @@ describe("Operations on Objects", () => {
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
 		})
@@ -574,7 +601,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -602,7 +628,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -625,7 +650,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -648,7 +672,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -665,7 +688,6 @@ describe("Operations on Objects", () => {
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			const objectRes = await request(res.headers.location!, {
 				encoding: null,
@@ -685,7 +707,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -705,7 +726,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -724,7 +744,6 @@ describe("Operations on Objects", () => {
 				res = await request.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 			} catch (err: unknown) {
 				res = errorResponse(err)
@@ -738,12 +757,19 @@ describe("Operations on Objects", () => {
 		it("stores the first file when multiple file parts are submitted", async () => {
 			const form = new FormData()
 			form.append("key", "first-file")
-			form.append("file", "first", "first.txt")
-			form.append("file", "second", "second.txt")
+			form.append(
+				"file",
+				new Blob(["first"], { type: "text/plain" }),
+				"first.txt",
+			)
+			form.append(
+				"file",
+				new Blob(["second"], { type: "text/plain" }),
+				"second.txt",
+			)
 			const res = await request.post("bucket-a", {
 				baseUrl: s3Client.endpoint.href,
 				body: form,
-				headers: form.getHeaders(),
 			})
 			expect(res.statusCode).to.equal(204)
 			const object = await s3Client.getObject({
@@ -755,13 +781,16 @@ describe("Operations on Objects", () => {
 
 		it("requires the key field before the file part", async () => {
 			const form = new FormData()
-			form.append("file", "Hello!", "first.txt")
+			form.append(
+				"file",
+				new Blob(["Hello!"], { type: "text/plain" }),
+				"first.txt",
+			)
 			form.append("key", "too-late")
 			const result = await request
 				.post("bucket-a", {
 					baseUrl: s3Client.endpoint.href,
 					body: form,
-					headers: form.getHeaders(),
 				})
 				.catch(errorResponse)
 			expect(result.statusCode).to.equal(400)

@@ -8,7 +8,8 @@
 		"lib": [
 			"ES2025",
 			"ESNext.Temporal",
-			"DOM"
+			"DOM",
+			"DOM.AsyncIterable"
 		],
 		"module": "NodeNext",
 		"moduleResolution": "NodeNext",
