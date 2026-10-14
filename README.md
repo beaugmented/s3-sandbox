@@ -1,6 +1,6 @@
 # S3 sandbox
 
-A local S3-compatible server for development and tests, preparing its first release as `@beaugmented/s3-sandbox@0.1.0`.
+A local S3-compatible server for development and tests, published as `@beaugmented/s3-sandbox`.
 
 The publishable package lives in [packages/s3-sandbox](packages/s3-sandbox). See its [README](packages/s3-sandbox/README.md) for the API, CLI, supported operations, and SDK configuration.
 
