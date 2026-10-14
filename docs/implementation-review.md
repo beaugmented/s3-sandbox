@@ -4,6 +4,8 @@ Oxlint runs through `vp lint` with correctness, suspicious-code, performance, pr
 
 Temporal uses Node 26's native implementation. Storage boundaries still use the branded UTC millisecond strings and protocol timestamp helpers. The declaration bundle includes the Temporal library reference so installed consumers receive its types.
 
+Declaration dependency exclusion uses `deps.dts.neverBundle: true`, which distinguishes external packages from local absolute paths. The former `/^[\w@]/` matcher also matched Windows drive paths and excluded local source declarations, leaving an unresolved filesystem chunk import in the published types. The installed-package contract checks the public store's method arguments as well as server, middleware, and lifecycle types on every supported platform.
+
 ## Deferred XML exception
 
 Paths beginning with `src/` in this review are relative to `packages/s3-sandbox/`.
