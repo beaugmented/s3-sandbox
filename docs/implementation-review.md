@@ -21,7 +21,6 @@ Replacing this boundary requires schemas for CORS, website, routing, and tagging
 - **Presigned lifetimes:** signature v4 still accepts a finite negative lifetime and reports an expired request. Inherited public tests require that result. Non-finite lifetimes now produce a protocol error. Decide whether negative, fractional, and empty lifetimes should instead be rejected as invalid query parameters, then update the compatibility tests deliberately.
 - **Signature v2 header timestamps:** canonicalization uses the query expiration field for v2, including header authentication where that field is absent. This merits independent tests with an external v2 signer before changing the string-to-sign calculation. Credential scope components in v4 also receive only partial validation.
 - **Escaped slashes in v4 signing:** the retained canonicalization uses the raw request URI. An independently signed request using `%2F` fails when the signer canonicalizes that escape to `/`, although anonymous requests store and retrieve that key correctly. Review S3's URI encoding rules before changing signing; raw dot segments, repeated slashes, Unicode keys, and mounted paths have regression coverage.
-- **Zero-ended ranges:** `FilesystemStore.getObject` uses truthiness for a range ending at byte zero, so `end: 0` becomes an unbounded range. Fix this together with tests for one-byte, empty-object, suffix, and unsatisfiable requests.
 
 ## Intentional lint exceptions
 
@@ -44,6 +43,10 @@ The existing S3 POST assertions remain. New tests cover every two-chunk split an
 Two evaluated replacements failed independent framing probes: Multipasta 0.2.8 rejected a closing delimiter split between its final hyphens, and @fastify/busboy 3.2.3 lost file bytes when the header terminator crossed a chunk boundary. The absorbed implementation passes those probes. Revisit replacements against these regression tests rather than publication dates alone.
 
 The inherited one-megabyte limit and truncation behavior still apply to ordinary text fields. A payload line beginning with the boundary prefix can terminate a file even when its delimiter suffix is invalid; this inherited framing behavior still needs a compatibility decision and focused correction. Atomic storage of uploads, rejection of multiple file parts, and validation of POST policy fields also remain separate decisions; the current contract stores the first file and ignores subsequent fields.
+
+## Range reads and filesystem failures
+
+Single byte ranges preserve explicit zero offsets, clamp oversized ends to the object length, and support suffix lengths. Empty objects are read without artificial stream bounds; range requests against them return `InvalidRange`. Reversed and zero-length suffix ranges retain an S3 range error, while malformed and multiple range headers are ignored. Private filesystem tests use injected permission and disk errors plus controlled deletion races, and wait for opened read streams to close before removing their temporary directories.
 
 ## Test client boundary
 

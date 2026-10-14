@@ -14,6 +14,7 @@ import { createS3Event, type S3EventData } from "../models/event.ts"
 import S3Object from "../models/object.ts"
 import { aws4SignatureBodyParser } from "../signature/v4.ts"
 import { type S3Context } from "../types.ts"
+import type { ObjectRangeOptions } from "../stores/filesystem.ts"
 import { capitalizeHeader, utf8BodyParser, xmlBodyParser } from "../utils.ts"
 
 function triggerS3Event(ctx: S3Context, eventData: S3EventData) {
@@ -111,11 +112,17 @@ export async function deleteObject(ctx: S3Context) {
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html}
  */
 export async function getObject(ctx: S3Context) {
-	const options: { start?: number; end?: number } = {}
-	if (ctx.get("range").startsWith("bytes=")) {
-		const [start, end] = ctx.get("range").replace("bytes=", "").split("-")
-		options.start = Number(start)
-		if (end) options.end = Number(end)
+	const options: ObjectRangeOptions = {}
+	const match = /^bytes=(\d*)-(\d*)$/.exec(ctx.get("range"))
+	if (match && (match[1] || match[2])) {
+		// Clamp arbitrarily long decimal ranges before passing them to Node's file streams.
+		if (match[1]) {
+			options.start = Math.min(Number(match[1]), Number.MAX_SAFE_INTEGER)
+			if (match[2])
+				options.end = Math.min(Number(match[2]), Number.MAX_SAFE_INTEGER)
+		} else {
+			options.suffixLength = Math.min(Number(match[2]), Number.MAX_SAFE_INTEGER)
+		}
 	}
 
 	const key = ctx.params.key

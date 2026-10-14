@@ -30,6 +30,12 @@ import { concatStreams, ensureDir, walk } from "../utils.ts"
 
 const S3RVER_SUFFIX = "%s._S3rver_%s"
 
+export type ObjectRangeOptions = {
+	start?: number
+	end?: number
+	suffixLength?: number
+}
+
 class FilesystemStore {
 	static decodeKeyPath(
 		keyPath: string,
@@ -324,39 +330,49 @@ class FilesystemStore {
 		}
 	}
 
-	async getObject(
-		bucket: string,
-		key: string,
-		options?: { start?: number; end?: number },
-	) {
+	async getObject(bucket: string, key: string, options?: ObjectRangeOptions) {
 		try {
 			const metadata = await this.getMetadata(bucket, key)
-			const lastByte = Math.max(0, metadata["content-length"] - 1)
+			const size = metadata["content-length"]
+			const lastByte = size - 1
+			const hasRange =
+				options?.start !== undefined ||
+				options?.end !== undefined ||
+				options?.suffixLength !== undefined
 			const range = {
-				// TODO: preserve an explicit end of zero; see docs/implementation-review.md.
-				start: (options && options.start) || 0,
-				end: Math.min((options && options.end) || Infinity, lastByte),
+				start:
+					options?.suffixLength !== undefined
+						? Math.max(0, size - options.suffixLength)
+						: (options?.start ?? 0),
+				end: Math.min(options?.end ?? lastByte, lastByte),
 			}
 
-			if (range.start < 0 || Math.min(range.end, lastByte) < range.start) {
+			if (
+				hasRange &&
+				(!Number.isSafeInteger(range.start) ||
+					!Number.isSafeInteger(range.end) ||
+					range.start < 0 ||
+					range.end < range.start ||
+					(options?.suffixLength !== undefined &&
+						(!Number.isSafeInteger(options.suffixLength) ||
+							options.suffixLength <= 0)))
+			) {
 				// the range is not satisfiable
 				const object = new S3Object(bucket, key, null, metadata)
-				if (options && (options.start !== undefined || options.end)) {
-					object.range = range
-				}
+				object.range = range
 				return object
 			}
 
 			const content = await new Promise<Readable>((resolve, reject) => {
 				const stream = createReadStream(
 					this.getResourcePath(bucket, key, "object"),
-					range,
+					hasRange ? range : undefined,
 				)
 					.on("error", reject)
 					.on("open", () => resolve(stream))
 			})
 			const object = new S3Object(bucket, key, content, metadata)
-			if (options && (options.start !== undefined || options.end)) {
+			if (hasRange) {
 				object.range = range
 			}
 			return object

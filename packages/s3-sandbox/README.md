@@ -111,6 +111,8 @@ The checksum settings select the S3 behavior currently implemented by the sandbo
 
 This is a partial S3 implementation intended for local development and tests. Unsupported operations return S3-shaped errors.
 
+Object reads support single byte ranges, including `bytes=0-0`, open-ended ranges, and suffix ranges such as `bytes=-10`. Ends and suffix lengths beyond the object size are clamped to the available bytes. Unsatisfiable ranges and ranges against empty objects return `416 InvalidRange`; malformed and multiple range headers are ignored.
+
 For multipart POST uploads, submit `key`, metadata, and response-control fields before the `file` part. File contents stream to storage even when the part has no filename. The server stores the first file and ignores later form fields.
 
 ## Bucket configuration and websites
