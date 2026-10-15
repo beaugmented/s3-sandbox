@@ -30,8 +30,8 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm run test
 
-  BreakCheck:
-    name: Break Check
+  Breakage:
+    name: Breakage
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

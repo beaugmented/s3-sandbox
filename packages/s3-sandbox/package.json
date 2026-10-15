@@ -58,7 +58,7 @@
 		"test:public": "vp test tests/public",
 		"test:private": "vp test tests/private",
 		"test:watch": "vp test watch",
-		"test:breaks": "node ../../scripts/run-break-check.node.ts",
+		"test:breaks": "node ../../scripts/run-breakage.node.ts",
 		"cov": "vp test --coverage"
 	},
 	"dependencies": {
@@ -78,7 +78,7 @@
 		"@smithy/core": "3.36.0",
 		"@smithy/signature-v4": "5.7.4",
 		"@types/he": "1.2.3",
-		"break-check": "0.8.2",
+		"breakage": "0.8.2",
 		"p-map": "7.1.1"
 	},
 	"packageManager": "pnpm@12.11.2",

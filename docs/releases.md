@@ -6,7 +6,7 @@ The first release is `@beaugmented/s3-sandbox@0.1.0`. The root is private; only 
 
 Before publishing, run a frozen install, `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm cov`. Inspect the tarball and its installed CLI, module exports, declarations, XML examples, license, and documentation. The ordinary public suite performs the installed-package checks.
 
-Before 1.0, compatible features and fixes receive patch changesets; breaking changes receive minor changesets. Keep changeset bodies on one line. Changesets creates scoped release tags, which become the baseline for `break-check`. There is no scoped release baseline before the first publication. Break Check runs without task caching because new release tags can change its input.
+Before 1.0, compatible features and fixes receive patch changesets; breaking changes receive minor changesets. Keep changeset bodies on one line. Changesets creates scoped release tags, which become the baseline for `breakage`. There is no scoped release baseline before the first publication. Breakage runs without task caching because new release tags can change its input.
 
 ## Publishing setup
 
