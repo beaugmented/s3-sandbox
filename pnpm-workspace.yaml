@@ -8,6 +8,7 @@ allowBuilds:
 blockExoticSubdeps: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
+  - breakage
   - vite-plus
   - "@voidzero-dev/*"
   - vitest

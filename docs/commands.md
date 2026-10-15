@@ -31,6 +31,8 @@ Enable the maintained pre-commit hook in a new clone with `pnpm exec vp hooks en
 
 Package-level commands retain the same meaning while narrowing scope. `test:public` and `test:private` select the corresponding suites. Public tests include installed-package checks that build and pack a disposable distribution.
 
+`test:breaks` runs Breakage with `packages/s3-sandbox/breakage.config.json`. It restores released public tests, helpers, and fixtures and runs `test:public` against the current implementation. Run it from a clean checkout with access to `origin`. A minor changeset certifies an intentional breaking change before 1.0; see [releases](releases.md).
+
 The inherited AWS SDK v2 fixtures exercise legacy client and signature contracts. AWS SDK v3 tests verify current client interoperability. Neither SDK is a runtime dependency.
 
 Vite Plus runs Oxlint and strict type checking through `check:vp`; warnings and unused suppression comments fail validation. dprint handles formatting separately. The test-specific assertion rule permits Chai-style assertions through the Vite Plus test API. The declaration bundler temporarily uses TypeScript 6 through the typed hook imported by `.pnpmfile.mjs`; maintained source is checked with TypeScript 7. See the [implementation review](implementation-review.md) for the deferred XML exception and protocol anomalies.
