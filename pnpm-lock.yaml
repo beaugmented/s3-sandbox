@@ -282,8 +282,8 @@ importers:
         specifier: 1.2.3
         version: 1.2.3
       breakage:
-        specifier: 0.8.4
-        version: 0.8.4(zod@4.6.7)
+        specifier: 0.8.5
+        version: 0.8.5(zod@4.6.7)
       p-map:
         specifier: 7.1.1
         version: 7.1.1
@@ -1635,8 +1635,8 @@ packages:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
-  breakage@0.8.4:
-    resolution: {integrity: sha512-g2jKdLdHwXrgSS3av++hwbDFGTVn3FAcE5cc7YexEggsWtnfn3Uz79x+jfUxraUj94VQSf8QDw/sy8e1/TNtKw==}
+  breakage@0.8.5:
+    resolution: {integrity: sha512-nW5vhnvZfz3E1sQJKHubXjg9rXL1E5CBiH1Y5IrU4CNPZr8VFzyUeAeKv1xRomX8Ea0l3F1F0Bq8dFvzq30jZA==}
     hasBin: true
 
   buffer@5.6.0:
@@ -3415,11 +3415,12 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  breakage@0.8.4(zod@4.6.7):
+  breakage@0.8.5(zod@4.6.7):
     dependencies:
       arktype: 2.2.8
       comline: 0.9.0(arktype@2.2.8)(zod@4.6.7)
       minimatch: 10.2.6
+      semver: 7.8.5
       simple-git: 4.0.2
       takua: 0.2.3
     transitivePeerDependencies:
