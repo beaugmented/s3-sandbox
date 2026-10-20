@@ -78,7 +78,7 @@
 		"@smithy/core": "3.36.0",
 		"@smithy/signature-v4": "5.7.4",
 		"@types/he": "1.2.3",
-		"breakage": "0.8.4",
+		"breakage": "0.8.5",
 		"p-map": "7.1.1"
 	},
 	"packageManager": "pnpm@12.14.0",
