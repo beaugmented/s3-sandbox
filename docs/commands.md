@@ -1,6 +1,6 @@
 # Repository commands
 
-Run commands from the root with `pnpm run <command>`. `mise.toml` pins Node 26.11.1, pnpm 12.11.2, and ni 30.6.0, and adds `node_modules/.bin` to `PATH`.
+Run commands from the root with `pnpm run <command>`. `mise.toml` pins Node 26.12.1, pnpm 12.14.0, and ni 30.6.0, and adds `node_modules/.bin` to `PATH`.
 
 ```sh
 mise install
