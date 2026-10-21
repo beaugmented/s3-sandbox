@@ -1,4 +1,4 @@
-/** UTC ISO 8601 timestamp with exactly three fractional digits, as in pack-os. */
+/** UTC ISO 8601 timestamp with exactly three fractional digits. */
 export type Iso8601 = string & { __brand: "ISO8601" }
 
 export function iso8601FromInstant(instant: Temporal.Instant): Iso8601
@@ -48,7 +48,7 @@ export function toHttpDate(instant: Temporal.Instant): string {
 	return `${weekdays[utc.dayOfWeek - 1]}, ${pad(utc.day)} ${months[utc.month - 1]} ${String(utc.year).padStart(4, "0")} ${pad(utc.hour)}:${pad(utc.minute)}:${pad(utc.second)} GMT`
 }
 
-/** Parse the compact AWS signing timestamp; invalid input has no instant. */
+/** Parse the compact AWS signing timestamp, returning null for invalid input. */
 export function parseISO8601String(value: string): Temporal.Instant | null {
 	if (!/^\d{8}T\d{6}Z$/.test(value)) return null
 	try {
