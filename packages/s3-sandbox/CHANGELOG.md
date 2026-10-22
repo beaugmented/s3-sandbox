@@ -1,5 +1,11 @@
 # @beaugmented/s3-sandbox
 
+## 0.1.3
+
+### Patch Changes
+
+- ea6cc60: Clean up source comments and clarify the documented behavior of object operations.
+
 ## 0.1.2
 
 ### Patch Changes
