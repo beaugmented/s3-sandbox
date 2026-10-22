@@ -45,10 +45,7 @@ export const METHODS = [
 ]
 
 /**
- * Delete Multiple Objects
- * The Multi-Object Delete request contains a list of up to 1000 keys that you want to delete. In
- * the XML, you provide the object key names, and optionally, version IDs if you want to delete a
- * specific version of the object from a versioning-enabled bucket.
+ * Delete the keys listed in the XML request, reporting missing keys as deleted.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/multiobjectdeleteapi.html}
  */
 export async function deleteMultipleObjects(ctx: S3Context) {
@@ -76,10 +73,7 @@ export async function deleteMultipleObjects(ctx: S3Context) {
 }
 
 /**
- * DELETE Object
- * The DELETE operation removes the null version (if there is one) of an object and inserts a
- * delete marker, which becomes the current version of the object. If there isn't a null version,
- * Amazon S3 does not remove any objects.
+ * Delete an object if present and return 204, including for missing keys.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html}
  */
 export async function deleteObject(ctx: S3Context) {
@@ -105,10 +99,7 @@ export async function deleteObject(ctx: S3Context) {
 }
 
 /**
- * GET Object
- * This implementation of the GET operation retrieves objects from Amazon S3. To use GET, you must
- * have READ access to the object. If you grant READ access to the anonymous user, you can return
- * the object without using an authorization header.
+ * Retrieve object content and metadata, supporting byte ranges and HEAD requests.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGET.html}
  */
 export async function getObject(ctx: S3Context) {
@@ -185,13 +176,10 @@ export async function getObject(ctx: S3Context) {
 }
 
 /**
- * GET Object ACL
- * This implementation of the GET operation uses the acl subresource to return the access control
- * list (ACL) of an object. To use this operation, you must have READ_ACP access to the object.
+ * Return a fixed ACL response for the dummy account.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectGETacl.html}
  */
 export async function getObjectAcl(ctx: S3Context) {
-	// NOTE: This is a stub implementation
 	ctx.body = {
 		AccessControlPolicy: {
 			"@": { xmlns: "http://doc.s3.amazonaws.com/2006-03-01/" },
@@ -662,11 +650,7 @@ export async function completeMultipartUpload(ctx: S3Context) {
 }
 
 /**
- * Initiate Multipart Upload
- * This operation initiates a multipart upload and returns an upload ID. This upload ID is used to
- * associate all of the parts in the specific multipart upload. You specify this upload ID in each
- * of your subsequent upload part requests. You also include this upload ID in the final request to
- * either complete or abort the multipart upload request.
+ * Create a multipart upload and return its ID for subsequent part requests.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadInitiate.html}
  */
 export async function initiateMultipartUpload(ctx: S3Context) {
@@ -687,12 +671,7 @@ export async function initiateMultipartUpload(ctx: S3Context) {
 }
 
 /**
- * Upload Part
- * This operation uploads a part in a multipart upload. Part numbers can be any number from 1 to
- * 10,000, inclusive. A part number uniquely identifies a part and also defines its position within
- * the object being created. If you upload a new part using the same part number that was used with
- * a previous part, the previously uploaded part is overwritten. Each part must be at least 5 MB in
- * size, except the last part. There is no size limit on the last part of your multipart upload.
+ * Store an upload part, replacing any existing part with the same number.
  * {@link https://docs.aws.amazon.com/AmazonS3/latest/API/mpUploadUploadPart.html}
  */
 export async function uploadPart(ctx: S3Context) {
