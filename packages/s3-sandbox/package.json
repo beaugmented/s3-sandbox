@@ -58,7 +58,7 @@
 		"test:public": "vp test tests/public",
 		"test:private": "vp test tests/private",
 		"test:watch": "vp test watch",
-		"test:breaks": "node ../../scripts/run-breakage.node.ts",
+		"test:breaks": "breakage --verbose",
 		"cov": "vp test --coverage"
 	},
 	"dependencies": {
@@ -75,10 +75,11 @@
 		"@aws-sdk/client-s3": "3.1156.0",
 		"@aws-sdk/lib-storage": "3.1156.0",
 		"@aws-sdk/s3-request-presigner": "3.1156.0",
+		"@breakage/changesets": "0.1.0",
 		"@smithy/core": "3.36.2",
 		"@smithy/signature-v4": "5.7.4",
 		"@types/he": "1.2.3",
-		"breakage": "0.8.5",
+		"breakage": "0.10.0",
 		"p-map": "7.1.1"
 	},
 	"packageManager": "pnpm@12.15.0",

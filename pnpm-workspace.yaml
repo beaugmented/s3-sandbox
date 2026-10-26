@@ -9,6 +9,7 @@ blockExoticSubdeps: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   # Packages maintained by jeremybanka; keep in sync with renovate.json.
+  - "@breakage/changesets"
   - agents.yaml
   - atom.io
   - breakage

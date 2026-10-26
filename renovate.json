@@ -105,6 +105,7 @@
 				"npm"
 			],
 			"matchPackageNames": [
+				"@breakage/changesets",
 				"agents.yaml",
 				"atom.io",
 				"breakage",
