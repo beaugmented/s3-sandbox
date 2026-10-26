@@ -246,7 +246,7 @@ importers:
         version: 26.6.5
       comline:
         specifier: 0.9.3
-        version: 0.9.3(arktype@2.2.8)(zod@4.6.7)
+        version: 0.9.3(arktype@2.2.9)(zod@4.6.7)
       fast-xml-parser:
         specifier: 5.11.2
         version: 5.11.2
@@ -282,19 +282,19 @@ importers:
         specifier: 1.2.3
         version: 1.2.3
       breakage:
-        specifier: 0.8.5
-        version: 0.8.5(zod@4.6.7)
+        specifier: 0.10.0
+        version: 0.10.0(zod@4.6.7)
       p-map:
         specifier: 7.1.1
         version: 7.1.1
 
 packages:
 
-  '@ark/schema@0.56.7':
-    resolution: {integrity: sha512-jmoOJlYIc4k1uv8oYBDNOFnAsKk2a2D9t/D6npF2JUfW4ecPB0v6ce6lruKg7lkBxIBA8Z7UtxfmvephYbhUGQ==}
+  '@ark/schema@0.56.8':
+    resolution: {integrity: sha512-R05TOe85oQBGFFw2zKMuZpqkXibLKuC/aJt6VwFn5Cjc4x3NkWfhvGRpRDycNkj3ddcHnOPtIsmjVowJO9Yxdw==}
 
-  '@ark/util@0.56.7':
-    resolution: {integrity: sha512-z8pVnrPk/x9GC18yOp5wCe8rR2+Z6us4CTSg7dvxdsDLuA2xXYq+QETD1fO6f3fMuXe+PCjpvtCnhTW9RHLgEw==}
+  '@ark/util@0.56.8':
+    resolution: {integrity: sha512-XLiQyGfpJcws1zCtp2Cva8s1oheCdFn1Rt6JSyC4NnkDrpwCJnlaiawuuOc1Z97vMH+jEzW5vyyf0xOju5wUQA==}
 
   '@aws-sdk/checksums@3.1001.5':
     resolution: {integrity: sha512-6erto9nK2OZO/woEgmFIaPh5gChgdNd7nL6jgAf8TAXz3/QHC8Pan2TFe9GYp3IxOIKCCGWPylSjtOHKfNzQlw==}
@@ -1605,11 +1605,11 @@ packages:
   aria-query@5.3.0:
     resolution: {integrity: sha512-b0P0sZPKtyu8HkeRAfCq0IfURZK+SuwMjY1UXGBU27wpAiTwQAIlq56IbIO+ytk/JjS1fMR14ee5WBBfKi5J6A==}
 
-  arkregex@0.0.13:
-    resolution: {integrity: sha512-c17sqCqiiZauxyoU1KZ2zbzCgeghGmc8dR2CrdQnlEtpq3bLhRLoLrxTL52M/8yQD8e/i1/IBRpRCNAuqJa7xQ==}
+  arkregex@0.0.14:
+    resolution: {integrity: sha512-G3I/uCtWE0IKQiPh0qqmmAFDdtjZKZQ5mNPR6gJBeAMZ7VqYCpoaDeXnLju2Zo6ywExtmxZJELeVFb0MPDjPyA==}
 
-  arktype@2.2.8:
-    resolution: {integrity: sha512-tZyLza7kO2vN8BXBKcj4t43IVMe8/ZyqlITH0chZv7FfEw+edLovpY922tqcK4mCjTpf4oNo2xV6np7tquP1ww==}
+  arktype@2.2.9:
+    resolution: {integrity: sha512-Cja0IMEn19rB35on9da1i1z6QMasuS7ULffXbetCry09jvCGYT8Bi1KgYiqri5FymF4nQAXkM90yksYkgSK2EA==}
 
   array-timsort@1.0.3:
     resolution: {integrity: sha512-/+3GRL7dDAGEfM6TseQk/U+mi18TU2Ms9I3UlLdUMhz2hbvGNTKdj9xniwXfUqgYhHxRx0+8UnKkvlNwVU+cWQ==}
@@ -1635,8 +1635,8 @@ packages:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
-  breakage@0.8.5:
-    resolution: {integrity: sha512-nW5vhnvZfz3E1sQJKHubXjg9rXL1E5CBiH1Y5IrU4CNPZr8VFzyUeAeKv1xRomX8Ea0l3F1F0Bq8dFvzq30jZA==}
+  breakage@0.10.0:
+    resolution: {integrity: sha512-NdrlShsiuiOadVTkD1EPscKxOgnX0/3vBMHww1Jm2YNATYXCpF+vySY/W3vZ/G020brOd3ZPbySt9tEcjJS9/A==}
     hasBin: true
 
   buffer@5.6.0:
@@ -1661,17 +1661,6 @@ packages:
   chalk@6.0.1:
     resolution: {integrity: sha512-/Ce6KNm3vIbWdMlNna6RVIZ/ICQxnJxCicet5LBKK9ZffBkqzDw0xh9EiKSljdRtiIQ1S1z4YgcscUUGzNCWrA==}
     engines: {node: '>=22'}
-
-  comline@0.9.0:
-    resolution: {integrity: sha512-PB6CjpeJqSzKL4XZ6kjlGE3G5bcBDZjRQcDoPwKsQT1VloTOQ9Q4EhkJFi0Ng39bFDB7I928qfOZ9LrDYaDc5A==}
-    peerDependencies:
-      arktype: ^2.1.28
-      zod: ^4.2.0
-    peerDependenciesMeta:
-      arktype:
-        optional: true
-      zod:
-        optional: true
 
   comline@0.9.3:
     resolution: {integrity: sha512-xtcKmn8iWGrkbet9qamn+Se3p9Fef2GSuOFKAq0AAx5tPFtB0kWLW+X1WkIHHDuPSpu5goVoffc5+6YHMvx/kQ==}
@@ -2149,9 +2138,6 @@ packages:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
     engines: {node: '>=6'}
 
-  treetrunks@0.1.12:
-    resolution: {integrity: sha512-x9XbZAus9Y4y7WRke6DwOrxmAxrwXNVv/wSmO9aNEfO92gu4Jau/4lmfXE1untxNle1WygPX2wriCtf+oYKMmg==}
-
   treetrunks@0.1.13:
     resolution: {integrity: sha512-mnGpuYAWH+EMci3E+4B9nd9K57mR4zSNmTrkzyJwTEmnN75TllJGgVb632unrp2AOfZ/ksgvombhwGH1bERhzw==}
 
@@ -2280,11 +2266,11 @@ packages:
 
 snapshots:
 
-  '@ark/schema@0.56.7':
+  '@ark/schema@0.56.8':
     dependencies:
-      '@ark/util': 0.56.7
+      '@ark/util': 0.56.8
 
-  '@ark/util@0.56.7': {}
+  '@ark/util@0.56.8': {}
 
   '@aws-sdk/checksums@3.1001.5':
     dependencies:
@@ -3399,15 +3385,15 @@ snapshots:
     dependencies:
       dequal: 2.0.3
 
-  arkregex@0.0.13:
+  arkregex@0.0.14:
     dependencies:
-      '@ark/util': 0.56.7
+      '@ark/util': 0.56.8
 
-  arktype@2.2.8:
+  arktype@2.2.9:
     dependencies:
-      '@ark/schema': 0.56.7
-      '@ark/util': 0.56.7
-      arkregex: 0.0.13
+      '@ark/schema': 0.56.8
+      '@ark/util': 0.56.8
+      arkregex: 0.0.14
 
   array-timsort@1.0.3: {}
 
@@ -3429,10 +3415,10 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  breakage@0.8.5(zod@4.6.7):
+  breakage@0.10.0(zod@4.6.7):
     dependencies:
-      arktype: 2.2.8
-      comline: 0.9.0(arktype@2.2.8)(zod@4.6.7)
+      arktype: 2.2.9
+      comline: 0.9.3(arktype@2.2.9)(zod@4.6.7)
       minimatch: 10.2.6
       semver: 7.8.5
       simple-git: 4.0.2
@@ -3458,20 +3444,12 @@ snapshots:
 
   chalk@6.0.1: {}
 
-  comline@0.9.0(arktype@2.2.8)(zod@4.6.7):
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      treetrunks: 0.1.12
-    optionalDependencies:
-      arktype: 2.2.8
-      zod: 4.6.7
-
-  comline@0.9.3(arktype@2.2.8)(zod@4.6.7):
+  comline@0.9.3(arktype@2.2.9)(zod@4.6.7):
     dependencies:
       '@standard-schema/spec': 1.1.0
       treetrunks: 0.1.13
     optionalDependencies:
-      arktype: 2.2.8
+      arktype: 2.2.9
       zod: 4.6.7
 
   commander@15.0.0: {}
@@ -3937,8 +3915,6 @@ snapshots:
   tinyrainbow@3.2.0: {}
 
   totalist@3.0.1: {}
-
-  treetrunks@0.1.12: {}
 
   treetrunks@0.1.13: {}
 
