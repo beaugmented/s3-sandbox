@@ -1,6 +1,0 @@
-{
-	"tagPattern": "refs/tags/@beaugmented/s3-sandbox@",
-	"testPattern": "tests/public/**",
-	"testCommand": "pnpm run test:public",
-	"certifyCommand": "node ../../scripts/certify-breaking-change.node.ts"
-}

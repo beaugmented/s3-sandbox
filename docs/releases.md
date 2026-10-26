@@ -6,7 +6,9 @@ The first release is `@beaugmented/s3-sandbox@0.1.0`. The root is private; only 
 
 Before publishing, run a frozen install, `pnpm check`, `pnpm test`, `pnpm build`, and `pnpm cov`. Inspect the tarball and its installed CLI, module exports, declarations, XML examples, license, and documentation. The ordinary public suite performs the installed-package checks.
 
-Before 1.0, compatible features and fixes receive patch changesets; breaking changes receive minor changesets. Keep changeset bodies on one line. Changesets creates scoped release tags, which become the baseline for `breakage`. There is no scoped release baseline before the first publication. Breakage runs without task caching because new release tags can change its input.
+Before 1.0, compatible features and fixes receive patch changesets; breaking changes receive minor changesets. Keep changeset bodies on one line. Changesets creates scoped release tags, which become the baseline for `breakage`. Breakage runs without task caching because new release tags can change its input. Missing release baselines and setup errors fail the compatibility check.
+
+`packages/s3-sandbox/breakage.config.ts` uses `@breakage/changesets` to resolve the planned version and `semverPolicy({ beforeV1: "minor" })` to permit breaking changes only for a minor or major release before 1.0, and a major release thereafter. After Changesets consumes the changesets during versioning, the versioned manifest supplies the release evidence against the selected baseline. Patch releases do not permit breaking changes; normal tests and static checks must pass independently.
 
 ## Publishing setup
 

@@ -272,6 +272,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: 3.1156.0
         version: 3.1156.0
+      '@breakage/changesets':
+        specifier: 0.1.0
+        version: 0.1.0(breakage@0.10.0(zod@4.6.7))
       '@smithy/core':
         specifier: 3.36.2
         version: 3.36.2
@@ -409,6 +412,11 @@ packages:
 
   '@blazediff/core@1.10.0':
     resolution: {integrity: sha512-AOQff0zgR7cGsZL+4E7hVkmujoPUpm0J9xzWGWZj5wCjd3gmxESXAPfKyuzs93VdpQNFhHlBhfOjrcZ+XTERtQ==}
+
+  '@breakage/changesets@0.1.0':
+    resolution: {integrity: sha512-6PS6IdZlP8l64Bor33G/xWkFshJdNDJu3AdjWVshwVPbLmIr1XsjuGmK6hEPxEjrnFxDH3E4XjWckjSOYKVR+g==}
+    peerDependencies:
+      breakage: ^0.10.0
 
   '@changesets/apply-release-plan@8.1.1':
     resolution: {integrity: sha512-nk2Hbq3M9NeHMdaIRBDvawKrQJzXB9sGyBUE5yWnIKtvdcNCPj75zBekJYr0gTT2ecJH3eFeTrc8eisPImcv0Q==}
@@ -2480,6 +2488,15 @@ snapshots:
   '@bcoe/v8-coverage@1.0.2': {}
 
   '@blazediff/core@1.10.0': {}
+
+  '@breakage/changesets@0.1.0(breakage@0.10.0(zod@4.6.7))':
+    dependencies:
+      '@changesets/assemble-release-plan': 7.0.0
+      '@changesets/config': 4.0.1
+      '@changesets/pre': 3.0.0
+      '@changesets/read': 1.0.1
+      '@manypkg/get-packages': 3.1.0
+      breakage: 0.10.0(zod@4.6.7)
 
   '@changesets/apply-release-plan@8.1.1':
     dependencies:
