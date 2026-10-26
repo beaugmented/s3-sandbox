@@ -100,6 +100,10 @@
 			"dependencyDashboardApproval": true
 		},
 		{
+			"description": "Packages maintained by jeremybanka; keep in sync with pnpm minimumReleaseAgeExclude",
+			"matchDatasources": [
+				"npm"
+			],
 			"matchPackageNames": [
 				"agents.yaml",
 				"atom.io",

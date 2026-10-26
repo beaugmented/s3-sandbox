@@ -8,7 +8,14 @@ allowBuilds:
 blockExoticSubdeps: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
+  # Packages maintained by jeremybanka; keep in sync with renovate.json.
+  - agents.yaml
+  - atom.io
   - breakage
+  - comline
+  - takua
+  - treetrunks
+  # The Vite Plus migrator may select freshly published toolchain packages.
   - vite-plus
   - "@voidzero-dev/*"
   - vitest
