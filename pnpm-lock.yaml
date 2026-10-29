@@ -274,7 +274,7 @@ importers:
         version: 3.1158.0
       '@breakage/changesets':
         specifier: 0.1.0
-        version: 0.1.0(breakage@0.10.0(zod@4.6.7))
+        version: 0.1.0(breakage@0.10.1(zod@4.6.7))
       '@smithy/core':
         specifier: 3.37.0
         version: 3.37.0
@@ -285,8 +285,8 @@ importers:
         specifier: 1.2.3
         version: 1.2.3
       breakage:
-        specifier: 0.10.0
-        version: 0.10.0(zod@4.6.7)
+        specifier: 0.10.1
+        version: 0.10.1(zod@4.6.7)
       p-map:
         specifier: 7.1.1
         version: 7.1.1
@@ -844,6 +844,9 @@ packages:
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
+
+  '@isaacs/nonrecursive-glob-match@1.0.2':
+    resolution: {integrity: sha512-GJPHIgPPtFl+nLhFHyF0zZoFcOFLsZWbHFFzo+Zr+PWDXJbl9hHxb2w+9SiF2fHmLgKaXIpUzQo3SbBBZ9WObw==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -1643,8 +1646,8 @@ packages:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
     engines: {node: 20 || >=22}
 
-  breakage@0.10.0:
-    resolution: {integrity: sha512-NdrlShsiuiOadVTkD1EPscKxOgnX0/3vBMHww1Jm2YNATYXCpF+vySY/W3vZ/G020brOd3ZPbySt9tEcjJS9/A==}
+  breakage@0.10.1:
+    resolution: {integrity: sha512-cxs6/gBeMl0K/Tt5MVBKn27dajk79hKREGm7Kg4WsTn67phAZD+523n+qyVi5GfhFjLteil6GCGGpal/5Yo7GA==}
     hasBin: true
 
   buffer@5.6.0:
@@ -1967,8 +1970,8 @@ packages:
   magicast@0.5.5:
     resolution: {integrity: sha512-UicdXN8zQ3JHlxVq+28afMXPr1z7WNY6+7EJnzTdQWkTAlMLF5fNCCKxJHBQwGaNGR11581EiQmQzx73+MvszA==}
 
-  minimatch@10.2.6:
-    resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
+  minimatch@11.0.2:
+    resolution: {integrity: sha512-pWTgz5CN3tjqyZNSK2tePlSmu9IwM41q8yn8Usdqqwe9TIHh+9dEpLLjF4uApsfPEAZY71qtSiA2B2APEr+1Yw==}
     engines: {node: 18 || 20 || >=22}
 
   mri@1.2.0:
@@ -2489,14 +2492,14 @@ snapshots:
 
   '@blazediff/core@1.10.0': {}
 
-  '@breakage/changesets@0.1.0(breakage@0.10.0(zod@4.6.7))':
+  '@breakage/changesets@0.1.0(breakage@0.10.1(zod@4.6.7))':
     dependencies:
       '@changesets/assemble-release-plan': 7.0.0
       '@changesets/config': 4.0.1
       '@changesets/pre': 3.0.0
       '@changesets/read': 1.0.1
       '@manypkg/get-packages': 3.1.0
-      breakage: 0.10.0(zod@4.6.7)
+      breakage: 0.10.1(zod@4.6.7)
 
   '@changesets/apply-release-plan@8.1.1':
     dependencies:
@@ -2904,6 +2907,8 @@ snapshots:
   '@hono/node-server@2.1.5(hono@4.13.14)':
     dependencies:
       hono: 4.13.14
+
+  '@isaacs/nonrecursive-glob-match@1.0.2': {}
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
@@ -3432,11 +3437,11 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  breakage@0.10.0(zod@4.6.7):
+  breakage@0.10.1(zod@4.6.7):
     dependencies:
       arktype: 2.2.9
       comline: 0.9.3(arktype@2.2.9)(zod@4.6.7)
-      minimatch: 10.2.6
+      minimatch: 11.0.2
       semver: 7.8.5
       simple-git: 4.0.2
       takua: 0.2.3
@@ -3754,8 +3759,9 @@ snapshots:
       '@babel/types': 7.29.8
       source-map-js: 1.2.2
 
-  minimatch@10.2.6:
+  minimatch@11.0.2:
     dependencies:
+      '@isaacs/nonrecursive-glob-match': 1.0.2
       brace-expansion: 5.0.12
 
   mri@1.2.0: {}
