@@ -63,7 +63,7 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "2.1.5",
-		"@types/node": "26.6.5",
+		"@types/node": "26.6.6",
 		"comline": "0.9.3",
 		"fast-xml-parser": "5.11.2",
 		"he": "2.0.0",

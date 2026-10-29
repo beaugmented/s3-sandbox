@@ -27,7 +27,7 @@
 		"@dprint/markdown": "0.28.2",
 		"@dprint/oxc": "0.48.0",
 		"@dprint/toml": "0.9.0",
-		"@types/node": "26.6.5",
+		"@types/node": "26.6.6",
 		"@vitest/coverage-v8": "catalog:",
 		"cspell": "10.4.0",
 		"dprint": "0.64.3",
