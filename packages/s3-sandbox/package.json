@@ -82,10 +82,10 @@
 		"breakage": "0.10.2",
 		"p-map": "7.1.1"
 	},
-	"packageManager": "pnpm@12.16.1",
+	"packageManager": "pnpm@12.18.0",
 	"engines": {
 		"node": "26.13.0",
-		"pnpm": "12.16.1"
+		"pnpm": "12.18.0"
 	},
 	"publishConfig": {
 		"access": "public"
