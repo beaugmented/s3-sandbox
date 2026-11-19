@@ -29,7 +29,7 @@
 		"@dprint/toml": "0.10.0",
 		"@types/node": "26.6.6",
 		"@vitest/coverage-v8": "catalog:",
-		"cspell": "10.5.1",
+		"cspell": "10.5.2",
 		"dprint": "0.65.0",
 		"dprint-plugin-yaml": "0.6.0",
 		"publint": "0.3.25",
