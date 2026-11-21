@@ -245,8 +245,8 @@ importers:
   packages/s3-sandbox:
     dependencies:
       '@hono/node-server':
-        specifier: 2.1.9
-        version: 2.1.9(hono@4.13.19)
+        specifier: 2.1.11
+        version: 2.1.11(hono@4.13.19)
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
@@ -845,8 +845,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@hono/node-server@2.1.9':
-    resolution: {integrity: sha512-Sk4NQd3GFY0WZWCzndwFMPwJhtD0y9qjsQ+pjID0/03nK9pxyBCUoUHCho8QYBLBVhi0ssL8UkNPHqbgSOFPIQ==}
+  '@hono/node-server@2.1.11':
+    resolution: {integrity: sha512-KzKz9vl4vvr1vgLHamj+g5uonbrj5NwAdO3yzOS6cd2HjALVeOgTgeZOyAzNxejbkfOOPIcvuf/Tg8l1pEFLog==}
     engines: {node: '>=20'}
     peerDependencies:
       hono: ^4 || ^5.0.0-0
@@ -2946,7 +2946,7 @@ snapshots:
   '@dprint/win32-x64@0.65.0':
     optional: true
 
-  '@hono/node-server@2.1.9(hono@4.13.19)':
+  '@hono/node-server@2.1.11(hono@4.13.19)':
     dependencies:
       hono: 4.13.19
 
