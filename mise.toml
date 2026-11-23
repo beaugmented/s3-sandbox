@@ -4,4 +4,4 @@ _.path = ["{{config_root}}/node_modules/.bin"]
 [tools]
 ni = "30.6.0"
 node = "26.13.1"
-pnpm = "12.21.0"
+pnpm = "12.23.0"
